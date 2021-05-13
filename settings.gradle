@@ -1,0 +1,2 @@
+rootProject.name = "ObsControl2"
+include ':app'
