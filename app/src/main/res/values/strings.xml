@@ -20,4 +20,5 @@
     <string name="strAuthentication">Authentifizierung</string>
     <string name="strPassword">Passwort</string>
     <string name="strLogon">Anmelden</string>
+    <string name="str_transition_to_program"><![CDATA[Vorschau --> Program]]></string>
 </resources>

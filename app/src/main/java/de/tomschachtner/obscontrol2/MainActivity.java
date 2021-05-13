@@ -16,6 +16,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.Toast;
 
 import java.net.URI;
@@ -31,7 +32,7 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
                 AlertDialog alert = new AlertDialog.Builder(ctx, R.style.myDialog).create();
                 alert.setTitle("Fehler");
                 alert.setMessage("Fehler beim Verbinden mit dem Webservice.\nFehlermeldung: " + localizedMessage);
-                alert.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",new DialogInterface.OnClickListener() {
+                alert.setButton(AlertDialog.BUTTON_NEUTRAL, "OK", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
                         dialogInterface.dismiss();
@@ -45,13 +46,31 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
     @Override
     public void onItemClick(View view, int position) {
         Log.i("TEST", "You clicked number " + adapter.getItem(position) + ", which is at cell position " + position);
+        mOBSWebSocketClient.switchActiveScene(adapter.getItem(position));
+    }
+
+    /**
+     * called after a new scenes list was received from OBS
+     */
+    public void newScenesAvailable() {
+        RecyclerView vButtonList = findViewById(R.id.button_list);
+        int numberOfColumns = 4;
+        vButtonList.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
+        if (adapter == null) {
+            adapter = new MyButtonListAdapter(this, mOBSWebSocketClient.obsScenes);
+            adapter.setClickListener(this);
+            mOBSWebSocketClient.setOnObsScenesChangedListener(adapter);
+            vButtonList.setAdapter(adapter);
+        }
+        adapter.notifyDataSetChanged();
+        vButtonList.invalidate();
     }
 
     enum status {
         OPEN,
         CONNECTING,
         CLOSED
-    };
+    }
     private status connectionStatus = status.CLOSED;
     private static final String TAG = "TS";
     ObsWebSocketClient mOBSWebSocketClient;
@@ -68,11 +87,7 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
     public boolean onPrepareOptionsMenu(Menu menu) {
         super.onPrepareOptionsMenu(menu);
         MenuItem logInMenuItem = menu.findItem(R.id.logon);
-        if (mOBSWebSocketClient.connStatus == ObsWebSocketClient.status.CLOSED) {
-            logInMenuItem.setEnabled(true);
-        } else {
-            logInMenuItem.setEnabled(false);
-        }
+        logInMenuItem.setEnabled(mOBSWebSocketClient.connStatus == ObsWebSocketClient.status.CLOSED);
         return true;
     }
 
@@ -93,26 +108,20 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
     }
 
     MyButtonListAdapter adapter;
-    String[] data = {"1","2","3","4","5","6","7","8","9","10"};
+    //String[] data = {"1","2","3","4","5","6","7","8","9","10"};
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-
-
         RecyclerView vButtonList = findViewById(R.id.button_list);
-        int numberOfColumns = 4;
-        vButtonList.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
-        adapter = new MyButtonListAdapter(this, data);
-        adapter.setClickListener(this);
-        vButtonList.setAdapter(adapter);
+        Button transition = findViewById(R.id.transition_to_program);
+        transition.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mOBSWebSocketClient.doTransitionToProgram();
+            }
+        });
 
-        verbindenMitWebService();
-
-    }
-
-    private void verbindenMitWebService() {
         URI webSocketURI;
         try {
             webSocketURI = new URI("ws://192.168.178.100:4444/");
@@ -120,7 +129,25 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
             e.printStackTrace();
             return;
         }
+
         mOBSWebSocketClient = new ObsWebSocketClient(webSocketURI, this);
+
+        int numberOfColumns = 4;
+        vButtonList.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
+        if (adapter == null) {
+            adapter = new MyButtonListAdapter(this, mOBSWebSocketClient.obsScenes);
+            adapter.setClickListener(this);
+            mOBSWebSocketClient.setOnObsScenesChangedListener(adapter);
+            vButtonList.setAdapter(adapter);
+        }
+        adapter.notifyDataSetChanged();
+        vButtonList.invalidate();
+        verbindenMitWebService();
+
+    }
+
+    private void verbindenMitWebService() {
+
         mOBSWebSocketClient.connect();
     }
 

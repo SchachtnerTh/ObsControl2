@@ -1,6 +1,7 @@
 package de.tomschachtner.obscontrol2;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,11 +14,16 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.jetbrains.annotations.NotNull;
 
-public class MyButtonListAdapter extends RecyclerView.Adapter<MyButtonListAdapter.ViewHolder> {
+import de.tomschachtner.obscontrol2.obsdata.ObsScenesList;
 
-    private String[] mData;
+public class MyButtonListAdapter
+        extends RecyclerView.Adapter<MyButtonListAdapter.ViewHolder>
+        implements ObsWebSocketClient.ObsScenesChangedListener {
+
+    private ObsScenesList mData;
     private LayoutInflater mInflater;
     private OnItemClickListener mClickListener;
+    private Context ctx;
 
     /**
      * The constructor creates the adapter object.
@@ -29,13 +35,13 @@ public class MyButtonListAdapter extends RecyclerView.Adapter<MyButtonListAdapte
      *
      * We also get the list of data (here: an array) which should be included in the RecyclerView
      * This is also saved as an instance property for later use.
-     *
-     * @param context System context (Activity)
+     *  @param context System context (Activity)
      * @param data Values to be shown in the RecyclerView
      */
-    public MyButtonListAdapter(Context context, String[] data) {
+    public MyButtonListAdapter(Context context, ObsScenesList data) {
         this.mInflater = LayoutInflater.from(context);
         this.mData = data;
+        this.ctx = context;
     }
 
     /**
@@ -50,8 +56,8 @@ public class MyButtonListAdapter extends RecyclerView.Adapter<MyButtonListAdapte
      * the class definition (here: <MyButtonListAdapter.ViewHolder>) and then automatically creates
      * an instance of that class for every element in the data source that the adapter encounters.)
      *
-     * @param parent
-     * @param viewType
+     * @param parent (unknown)
+     * @param viewType (unknown)
      * @return The newly inflated ViewHolder
      */
     @NonNull
@@ -74,7 +80,16 @@ public class MyButtonListAdapter extends RecyclerView.Adapter<MyButtonListAdapte
      */
     @Override
     public void onBindViewHolder(@NonNull @NotNull MyButtonListAdapter.ViewHolder holder, int position) {
-        holder.myTextView.setText(mData[position]);
+        holder.myTextView.setText(mData.scenes.get(position).name);
+        if (mData.scenes.get(position).name.equals(mData.getCurrentPreviewScene())) {
+            holder.myTextView.setBackgroundColor(Color.rgb(0xaa, 0xaa, 0xff));
+            holder.myTextView.setTextColor(Color.DKGRAY);
+            holder.myTextView.setOnClickListener(null);
+        } else {
+            holder.myTextView.setBackgroundColor(Color.rgb(0x00, 0x00, 0xff));
+            holder.myTextView.setTextColor(Color.WHITE);
+            holder.myTextView.setOnClickListener(holder);
+        }
     }
 
     /**
@@ -84,11 +99,11 @@ public class MyButtonListAdapter extends RecyclerView.Adapter<MyButtonListAdapte
      */
     @Override
     public int getItemCount() {
-        return mData.length;
+        return mData.scenes.size();
     }
 
     String getItem(int id) {
-        return mData[id];
+        return mData.scenes.get(id).name;
     }
 
     /**
@@ -100,7 +115,14 @@ public class MyButtonListAdapter extends RecyclerView.Adapter<MyButtonListAdapte
      *                          listener.
      */
     void setClickListener(MyButtonListAdapter.OnItemClickListener itemClickListener) {
-        this.mClickListener = (OnItemClickListener) itemClickListener;
+        this.mClickListener = itemClickListener;
+    }
+
+    @Override
+    public void onObsScenesChanged(ObsScenesList obsScenesList) {
+        mData = obsScenesList;
+        ((MainActivity)ctx).runOnUiThread(this::notifyDataSetChanged);
+
     }
 
     /**

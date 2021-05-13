@@ -17,6 +17,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft;
 import org.java_websocket.handshake.ServerHandshake;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -26,14 +27,24 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.OpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import de.tomschachtner.obscontrol2.obsdata.ObsScene;
+import de.tomschachtner.obscontrol2.obsdata.ObsScenesList;
+import de.tomschachtner.obscontrol2.obsdata.ObsSource;
+
+import static java.lang.Thread.*;
 
 public class ObsWebSocketClient extends WebSocketClient {
 
     public static final String TAG = "ObsWebSocketClient_TS";
     public MainActivity mainAct;
     public status connStatus;
+
+    public ObsScenesList obsScenes;
 
     public void getScenesList() {
         JSONObject jso;
@@ -49,10 +60,49 @@ public class ObsWebSocketClient extends WebSocketClient {
         }
     }
 
+    public void getPreviewScene() {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "GetPreviewScene");
+            jso.put("message-id", "GetPreviewScene_SCT");
+            send(jso.toString());
+        }
+        catch (JSONException jse)
+        {
+            jse.printStackTrace();
+        }
+    }
+
+    public void switchActiveScene(String newScene) {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "SetPreviewScene");
+            jso.put("message-id", "SetScene_SCT");
+            jso.put("scene-name", newScene);
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void doTransitionToProgram() {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "TransitionToProgram");
+            jso.put("message-id", "transProgram_SCT");
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
     public enum status {
         OPEN,
         CLOSED
-    };
+    }
 
     boolean SettingsActivityRunningForPassword = false;
 
@@ -63,6 +113,7 @@ public class ObsWebSocketClient extends WebSocketClient {
         super(serverUri);
         mainAct = activity;
         connStatus = status.CLOSED;
+        obsScenes = new ObsScenesList();
     }
 
     /**
@@ -158,32 +209,92 @@ public class ObsWebSocketClient extends WebSocketClient {
      **/
     @Override
     public void onMessage(String message) {
+        JSONObject jso=null;
         try {
-            JSONObject jso = new JSONObject(message);
-            String msgId = jso.getString("message-id");
-            switch (msgId)
-            {
-                case "isAuthRequired_SCT":
-                    // Benutzer muss sich authentisieren
-                    // ToastInMainAct("Benutzer muss sich authentisieren!");
-                    checkAndDoAuth(jso);
-                    break;
-                case "Authenticate_SCT":
-                    ToastInMainAct(jso.toString());
-                    Log.d("TEST", jso.toString());
-                    processAuthResult(jso);
-                    getScenesList();
-                    break;
-                case "SceneList_SCT":
-                    Log.d("TEST", jso.toString());
-                    break;
-                default:
-                    ToastInMainAct("Unbekannte Antwort vom WebService!");
+            jso = new JSONObject(message);
+            if (jso.has("message-id")) {
+                String msgId = jso.getString("message-id");
+                switch (msgId) {
+                    case "isAuthRequired_SCT":
+                        // Benutzer muss sich authentisieren
+                        // ToastInMainAct("Benutzer muss sich authentisieren!");
+                        checkAndDoAuth(jso);
+                        break;
+                    case "Authenticate_SCT":
+                        ToastInMainAct(jso.toString());
+                        Log.d("TEST", jso.toString());
+                        processAuthResult(jso);
+                        getScenesList();
+                        break;
+                    case "SceneList_SCT":
+                        Log.d("TEST", jso.toString());
+                        createUpdateOBSScenes(jso);
+                        getPreviewScene();
+                        break;
+                    case "SetScene_SCT":
+                    case "transProgram_SCT":
+                        Log.d("TEST", jso.toString());
+                        TimeUnit.MILLISECONDS.sleep(200);
+                        getScenesList();
+                        invalidateAdapters();
+                        break;
+                    case "GetPreviewScene_SCT":
+                        Log.d("TEST", jso.toString());
+                        obsScenes.setCurrentPreviewScene(jso.getString("name"));
+                        invalidateAdapters();
+                        break;
+                    default:
+                        ToastInMainAct("Unbekannte Antwort vom WebService!");
+                }
             }
+        } catch (JSONException | InterruptedException e) {
+            //e.printStackTrace();
+            if (jso != null) Log.e("TEST", jso.toString());
+        }
+
+    }
+
+    /**
+     * Eine Struktur mit allen im ausgewählten OBS-Profil verfügbaren Szenen wird angelegt
+     * @param jso Struktur, die alle OBS-Szenen enthält
+     */
+    private void createUpdateOBSScenes(JSONObject jso) {
+        try {
+            obsScenes = new ObsScenesList();
+            obsScenes.setCurrentScene(jso.getString("current-scene"));
+            JSONArray scenes = jso.getJSONArray("scenes");
+            for (int i = 0; i < scenes.length(); i++) {
+                JSONObject scene = scenes.getJSONObject(i);
+                Log.d("TEST", "Szene: " + scene.getString("name"));
+                ObsScene obsScene = new ObsScene();
+                obsScene.name = scene.getString("name");
+                JSONArray sources = scene.getJSONArray("sources");
+                for (int j = 0; j < sources.length(); j++) {
+                    JSONObject source = sources.getJSONObject(j);
+                    Log.d("TEST", "-- Source: " + source.getString("name"));
+                    ObsSource obsSource = new ObsSource(source);
+                    obsScene.sources.add(obsSource);
+                }
+                obsScenes.scenes.add(obsScene);
+            }
+
+//            mainAct.runOnUiThread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    mainAct.newScenesAvailable();
+//                }
+//            });
+            //mainAct.newScenesAvailable();
         } catch (JSONException e) {
             e.printStackTrace();
         }
+    }
 
+    public void invalidateAdapters() {
+        if (obsScenes.getCurrentPreviewScene() == null) {
+            Log.e("TEST", "Preview scene is null!");
+        }
+        mObsScenesChangedListener.onObsScenesChanged(obsScenes);
     }
 
     private void processAuthResult(JSONObject jso) {
@@ -217,13 +328,13 @@ public class ObsWebSocketClient extends WebSocketClient {
                 try {
                     MessageDigest digest = MessageDigest.getInstance("SHA-256");
                     byte[] secret_hash = digest.digest(secret_string.getBytes(StandardCharsets.UTF_8));
-                    Log.d("TEST", "secret_hash: " + secret_hash.toString());
+                    Log.d("TEST", "secret_hash: " + Arrays.toString(secret_hash));
                     String secret = Base64.getEncoder().encodeToString(secret_hash);
                     Log.d("TEST", "secret: " + secret);
                     String auth_response_string = secret + challenge;
                     Log.d("TEST", "auth_response_string: " + auth_response_string);
                     byte[] auth_response_hash = digest.digest(auth_response_string.getBytes(StandardCharsets.UTF_8));
-                    Log.d("TEST", "auth_response_hash: " + auth_response_hash.toString());
+                    Log.d("TEST", "auth_response_hash: " + Arrays.toString(auth_response_hash));
                     String auth_response = Base64.getEncoder().encodeToString(auth_response_hash);
                     Log.d("TEST", "auth_response: " + auth_response);
 
@@ -286,7 +397,7 @@ public class ObsWebSocketClient extends WebSocketClient {
      *
      * @param code   The codes can be looked up here: {@link CloseFrame}
      * @param reason Additional information string
-     * @param remote
+     * @param remote (unknown)
      **/
     @Override
     public void onClose(int code, String reason, boolean remote) {
@@ -319,5 +430,22 @@ public class ObsWebSocketClient extends WebSocketClient {
         {
             jse.printStackTrace();
         }
+    }
+
+    /**
+     * Create an interface to be able to inform the RecyclerView adapter about any changes if
+     * necessary
+     */
+    public interface ObsScenesChangedListener {
+        void onObsScenesChanged(ObsScenesList obsScenesList);
+    }
+
+    /**
+     * This variable holds the listener that is informed about changes of the scenes list
+     */
+    ObsScenesChangedListener mObsScenesChangedListener;
+
+    public void setOnObsScenesChangedListener(ObsScenesChangedListener listener) {
+        this.mObsScenesChangedListener = listener;
     }
 }
