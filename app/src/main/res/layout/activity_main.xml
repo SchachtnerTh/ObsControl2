@@ -7,18 +7,49 @@
     tools:context=".MainActivity">
 
     <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:id="@+id/connect_status"
+        android:layout_width="0dp"
+        android:layout_height="19dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="32dp"
         android:text="Test"
-        app:layout_constraintBottom_toTopOf="@+id/button_list"
+        android:textAlignment="center"
+        app:layout_constraintBottom_toTopOf="@id/aktive_szene_caption_view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <TextView
+        android:id="@+id/aktive_szene_caption_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/active_scene_caption"
+        android:textSize="20sp"
+        app:layout_constraintBottom_toTopOf="@id/button_list"
+        app:layout_constraintEnd_toStartOf="@+id/aktive_szene_display"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/connect_status" />
+
+    <TextView
+        android:id="@+id/aktive_szene_display"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:text="TextView"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="@id/aktive_szene_caption_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/aktive_szene_caption_view"
+        app:layout_constraintTop_toTopOf="@id/aktive_szene_caption_view" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/button_list"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
@@ -28,7 +59,7 @@
         app:layout_constraintBottom_toTopOf="@+id/recyclerView"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView"
+        app:layout_constraintTop_toBottomOf="@id/aktive_szene_caption_view"
         tools:itemCount="15"
         tools:layoutManager="GridLayoutManager"
         tools:listitem="@layout/buttongrid"

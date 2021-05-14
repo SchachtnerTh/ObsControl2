@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -19,6 +20,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.net.URI;
@@ -107,8 +109,9 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
         return true;
     }
 
+    TextView connectStatusIndicator;
+    public TextView currentSceneName;
     MyButtonListAdapter adapter;
-    //String[] data = {"1","2","3","4","5","6","7","8","9","10"};
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -146,19 +149,45 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
             mOBSWebSocketClient.setOnObsScenesChangedListener(adapter);
 
             vButtonList.setAdapter(adapter);
+            connectStatusIndicator = findViewById(R.id.connect_status);
+            currentSceneName = findViewById(R.id.aktive_szene_display);
+            setConnectStatusIndicator(status.CLOSED);
+
             verbindenMitWebService();
+        }
+    }
+
+    private void setConnectStatusIndicator(status statusIndicator) {
+        switch (statusIndicator){
+            case CLOSED:
+                connectStatusIndicator.setText("OFFLINE");
+                connectStatusIndicator.setBackgroundColor(Color.RED);
+                break;
+            case OPEN:
+                connectStatusIndicator.setText("ONLINE");
+                connectStatusIndicator.setBackgroundColor(Color.GREEN);
+                break;
+            case CONNECTING:
+                connectStatusIndicator.setText("Verbinden");
+                connectStatusIndicator.setBackgroundColor(Color.YELLOW);
+                break;
+            default:
+                connectStatusIndicator.setText("UNDEFINED!");
+                connectStatusIndicator.setBackgroundColor(Color.RED);
         }
     }
 
     private void verbindenMitWebService() {
 
         mOBSWebSocketClient.connect();
+        setConnectStatusIndicator(status.CONNECTING);
     }
 
     void onConnectedToWebService() {
         //Toast.makeText(this, "Yeah!", Toast.LENGTH_SHORT).show();
         mOBSWebSocketClient.checkAuthentication();
         invalidateOptionsMenu();
+        setConnectStatusIndicator(status.OPEN);
         //mOBSWebSocketClient.getScenesList();
     }
 
@@ -170,5 +199,6 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
     public void onDisconnectedFromWebService() {
         //Toast.makeText(this, "Yeah!", Toast.LENGTH_SHORT).show();
         invalidateOptionsMenu();
+        setConnectStatusIndicator(status.CLOSED);
     }
 }

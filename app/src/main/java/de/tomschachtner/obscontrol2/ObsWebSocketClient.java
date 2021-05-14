@@ -298,6 +298,7 @@ public class ObsWebSocketClient extends WebSocketClient {
             @Override
             public void run() {
                 mObsScenesChangedListener.onObsScenesChanged(obsScenes);
+                mainAct.currentSceneName.setText(obsScenes.getCurrentScene());
             }
         });
    }

@@ -24,4 +24,5 @@
     <string name="obs_remote_ws_host_caption">OBS Remobe Webservice host</string>
     <string name="ws_host">Webservice Host</string>
     <string name="ws_port">Webservice Port</string>
+    <string name="active_scene_caption">aktive Szene:</string>
 </resources>
