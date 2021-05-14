@@ -294,8 +294,13 @@ public class ObsWebSocketClient extends WebSocketClient {
         if (obsScenes.getCurrentPreviewScene() == null) {
             Log.e("TEST", "Preview scene is null!");
         }
-        mObsScenesChangedListener.onObsScenesChanged(obsScenes);
-    }
+        mainAct.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mObsScenesChangedListener.onObsScenesChanged(obsScenes);
+            }
+        });
+   }
 
     private void processAuthResult(JSONObject jso) {
         try {

@@ -3,12 +3,14 @@ package de.tomschachtner.obscontrol2;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -62,8 +64,6 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
             mOBSWebSocketClient.setOnObsScenesChangedListener(adapter);
             vButtonList.setAdapter(adapter);
         }
-        adapter.notifyDataSetChanged();
-        vButtonList.invalidate();
     }
 
     enum status {
@@ -112,38 +112,42 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        RecyclerView vButtonList = findViewById(R.id.button_list);
-        Button transition = findViewById(R.id.transition_to_program);
-        transition.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mOBSWebSocketClient.doTransitionToProgram();
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
+        String host = sp.getString("ws_host_value", null);
+        String port = sp.getString("ws_port_value", null);
+        if (host == null || port == null) {
+            Intent i = new Intent(this, SettingsActivity.class);
+            startActivity(i);
+        } else {
+            setContentView(R.layout.activity_main);
+            RecyclerView vButtonList = findViewById(R.id.button_list);
+            Button transition = findViewById(R.id.transition_to_program);
+            transition.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    mOBSWebSocketClient.doTransitionToProgram();
+                }
+            });
+
+            URI webSocketURI;
+            try {
+                webSocketURI = new URI("ws://" + host + ":" + port + "/");
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+                return;
             }
-        });
 
-        URI webSocketURI;
-        try {
-            webSocketURI = new URI("ws://192.168.178.100:4444/");
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-            return;
-        }
+            mOBSWebSocketClient = new ObsWebSocketClient(webSocketURI, this);
 
-        mOBSWebSocketClient = new ObsWebSocketClient(webSocketURI, this);
-
-        int numberOfColumns = 4;
-        vButtonList.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
-        if (adapter == null) {
+            int numberOfColumns = 4;
+            vButtonList.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
             adapter = new MyButtonListAdapter(this, mOBSWebSocketClient.obsScenes);
             adapter.setClickListener(this);
             mOBSWebSocketClient.setOnObsScenesChangedListener(adapter);
-            vButtonList.setAdapter(adapter);
-        }
-        adapter.notifyDataSetChanged();
-        vButtonList.invalidate();
-        verbindenMitWebService();
 
+            vButtonList.setAdapter(adapter);
+            verbindenMitWebService();
+        }
     }
 
     private void verbindenMitWebService() {

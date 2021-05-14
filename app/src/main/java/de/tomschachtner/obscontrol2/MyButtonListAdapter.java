@@ -82,11 +82,13 @@ public class MyButtonListAdapter
     public void onBindViewHolder(@NonNull @NotNull MyButtonListAdapter.ViewHolder holder, int position) {
         holder.myTextView.setText(mData.scenes.get(position).name);
         if (mData.scenes.get(position).name.equals(mData.getCurrentPreviewScene())) {
-            holder.myTextView.setBackgroundColor(Color.rgb(0xaa, 0xaa, 0xff));
+//            holder.myTextView.setBackgroundColor(Color.rgb(0xaa, 0xaa, 0xff));
+            holder.myTextView.setBackgroundResource(R.drawable.active_scene);
             holder.myTextView.setTextColor(Color.DKGRAY);
             holder.myTextView.setOnClickListener(null);
         } else {
-            holder.myTextView.setBackgroundColor(Color.rgb(0x00, 0x00, 0xff));
+//            holder.myTextView.setBackgroundColor(Color.rgb(0x00, 0x00, 0xff));
+            holder.myTextView.setBackgroundResource(R.drawable.non_active_scene);
             holder.myTextView.setTextColor(Color.WHITE);
             holder.myTextView.setOnClickListener(holder);
         }
@@ -120,8 +122,14 @@ public class MyButtonListAdapter
 
     @Override
     public void onObsScenesChanged(ObsScenesList obsScenesList) {
-        mData = obsScenesList;
-        ((MainActivity)ctx).runOnUiThread(this::notifyDataSetChanged);
+        //mData = obsScenesList;
+        ((MainActivity)ctx).runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mData = obsScenesList;
+                notifyDataSetChanged();
+            }
+        });
 
     }
 
