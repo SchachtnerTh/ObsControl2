@@ -1,4 +1,4 @@
-package de.tomschachtner.obscontrol2;
+package de.tomschachtner.obscontrol;
 
 import android.content.Context;
 

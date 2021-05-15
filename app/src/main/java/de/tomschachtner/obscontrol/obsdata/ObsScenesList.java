@@ -1,4 +1,4 @@
-package de.tomschachtner.obscontrol2.obsdata;
+package de.tomschachtner.obscontrol.obsdata;
 
 import java.util.ArrayList;
 

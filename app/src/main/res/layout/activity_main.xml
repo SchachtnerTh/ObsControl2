@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    tools:context="de.tomschachtner.obscontrol.MainActivity">
 
     <TextView
         android:id="@+id/connect_status"
@@ -29,7 +29,7 @@
         android:layout_marginEnd="8dp"
         android:text="@string/active_scene_caption"
         android:textSize="20sp"
-        app:layout_constraintBottom_toTopOf="@id/button_list"
+        app:layout_constraintBottom_toTopOf="@id/scenes_button_list"
         app:layout_constraintEnd_toStartOf="@+id/aktive_szene_display"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/connect_status" />
@@ -48,37 +48,38 @@
         app:layout_constraintTop_toTopOf="@id/aktive_szene_caption_view" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/button_list"
+        android:id="@+id/scenes_button_list"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
-        android:layout_marginBottom="9dp"
         android:textAlignment="center"
-        app:layout_constraintBottom_toTopOf="@+id/recyclerView"
+        app:layout_constraintBottom_toTopOf="@+id/sources_button_list"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/aktive_szene_caption_view"
-        tools:itemCount="15"
+        tools:itemCount="2"
         tools:layoutManager="GridLayoutManager"
         tools:listitem="@layout/buttongrid"
         tools:spanCount="4" />
     <!-- tools:listitem="@layout/recycler_view_item" -->
 
-<!--    <androidx.recyclerview.widget.RecyclerView-->
-<!--        android:id="@+id/recyclerView"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="0dp"-->
-<!--        android:layout_marginStart="8dp"-->
-<!--        android:layout_marginTop="8dp"-->
-<!--        android:layout_marginEnd="8dp"-->
-<!--        android:layout_marginBottom="8dp"-->
-<!--        app:layout_constraintBottom_toTopOf="@+id/transition_to_program"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintHorizontal_bias="1.0"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintTop_toBottomOf="@+id/button_list" />-->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/sources_button_list"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:textAlignment="center"
+        app:layout_constraintBottom_toTopOf="@id/stream_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/scenes_button_list"
+        tools:itemCount="2"
+        tools:layoutManager="GridLayoutManager"
+        tools:listitem="@layout/buttongrid"
+        tools:spanCount="4" />
 
     <Button
         android:id="@+id/transition_to_program"
@@ -90,5 +91,30 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <ImageButton
+        android:id="@+id/stream_button"
+        android:layout_width="150dp"
+        android:layout_height="50dp"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/not_on_air"
+        android:scaleType="fitCenter"
+        app:layout_constraintBottom_toTopOf="@+id/transition_to_program"
+        app:layout_constraintEnd_toStartOf="@+id/record_button"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/sources_button_list"
+        app:srcCompat="@drawable/ic_stream" />
+
+    <ImageButton
+        android:id="@+id/record_button"
+        android:layout_width="150dp"
+        android:layout_height="50dp"
+        android:background="@drawable/not_on_air"
+        android:scaleType="fitCenter"
+        app:layout_constraintBottom_toBottomOf="@+id/stream_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/stream_button"
+        app:layout_constraintTop_toTopOf="@+id/stream_button"
+        app:srcCompat="@drawable/ic_hdd" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

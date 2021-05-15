@@ -1,4 +1,4 @@
-package de.tomschachtner.obscontrol2;
+package de.tomschachtner.obscontrol;
 
 import android.os.Bundle;
 import android.text.InputType;
@@ -9,6 +9,8 @@ import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.preference.EditTextPreference;
 import androidx.preference.PreferenceFragmentCompat;
+
+import de.tomschachtner.obscontrol.R;
 
 public class SettingsActivity extends AppCompatActivity {
 

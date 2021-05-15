@@ -1,12 +1,10 @@
-package de.tomschachtner.obscontrol2;
+package de.tomschachtner.obscontrol;
 
 import android.content.Context;
 import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -14,15 +12,15 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.jetbrains.annotations.NotNull;
 
-import de.tomschachtner.obscontrol2.obsdata.ObsScenesList;
+import de.tomschachtner.obscontrol.obsdata.ObsScenesList;
 
-public class MyButtonListAdapter
-        extends RecyclerView.Adapter<MyButtonListAdapter.ViewHolder>
-        implements ObsWebSocketClient.ObsScenesChangedListener {
+public class OBSSceneButtonsAdapter
+        extends RecyclerView.Adapter<OBSSceneButtonsAdapter.ViewHolder>
+        implements OBSWebSocketClient.ObsScenesChangedListener {
 
     private ObsScenesList mData;
     private LayoutInflater mInflater;
-    private OnItemClickListener mClickListener;
+    private OnSceneClickListener mClickListener;
     private Context ctx;
 
     /**
@@ -38,7 +36,7 @@ public class MyButtonListAdapter
      *  @param context System context (Activity)
      * @param data Values to be shown in the RecyclerView
      */
-    public MyButtonListAdapter(Context context, ObsScenesList data) {
+    public OBSSceneButtonsAdapter(Context context, ObsScenesList data) {
         this.mInflater = LayoutInflater.from(context);
         this.mData = data;
         this.ctx = context;
@@ -53,7 +51,7 @@ public class MyButtonListAdapter
      *
      * (I think, that here is, where the magic happens: in onCreateViewHolder, the framework
      * recognizes with type of ViewHolder is to be used (by looking at the template argument from
-     * the class definition (here: <MyButtonListAdapter.ViewHolder>) and then automatically creates
+     * the class definition (here: <OBSSceneButtonsAdapter.ViewHolder>) and then automatically creates
      * an instance of that class for every element in the data source that the adapter encounters.)
      *
      * @param parent (unknown)
@@ -63,7 +61,7 @@ public class MyButtonListAdapter
     @NonNull
     @NotNull
     @Override
-    public MyButtonListAdapter.ViewHolder onCreateViewHolder(@NonNull @NotNull ViewGroup parent, int viewType) {
+    public OBSSceneButtonsAdapter.ViewHolder onCreateViewHolder(@NonNull @NotNull ViewGroup parent, int viewType) {
         View view = mInflater.inflate(R.layout.buttongrid, parent, false);
         return new ViewHolder(view);
     }
@@ -79,7 +77,7 @@ public class MyButtonListAdapter
      *                 ViewHolder's views with. (That might me database IDs or just array indices.)
      */
     @Override
-    public void onBindViewHolder(@NonNull @NotNull MyButtonListAdapter.ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull @NotNull OBSSceneButtonsAdapter.ViewHolder holder, int position) {
         holder.myTextView.setText(mData.scenes.get(position).name);
         if (mData.scenes.get(position).name.equals(mData.getCurrentPreviewScene())) {
 //            holder.myTextView.setBackgroundColor(Color.rgb(0xaa, 0xaa, 0xff));
@@ -116,8 +114,8 @@ public class MyButtonListAdapter
      * @param itemClickListener is set by the calling object to whatever object that shall be the
      *                          listener.
      */
-    void setClickListener(MyButtonListAdapter.OnItemClickListener itemClickListener) {
-        this.mClickListener = itemClickListener;
+    void setSceneClickListener(OBSSceneButtonsAdapter.OnSceneClickListener sceneClickListener) {
+        this.mClickListener = sceneClickListener;
     }
 
     @Override
@@ -134,13 +132,13 @@ public class MyButtonListAdapter
     }
 
     /**
-     * Here, we define the OnItemClickListener interface. This interface makes sure, that "everyone"
-     * who "claims to be" an OnItemClickListener, really implements the OnItemClick method.
-     * This is needed by the OnClickListener in the ViewHolder class, as there, the OnItemClick
-     * method is invoked in an object implementing the OnItemClickListener interface.
+     * Here, we define the OnSceneClickListener interface. This interface makes sure, that "everyone"
+     * who "claims to be" an OnSceneClickListener, really implements the onSceneClick method.
+     * This is needed by the OnSceneClickListener in the ViewHolder class, as there, the onSceneClick
+     * method is invoked in an object implementing the OnSceneClickListener interface.
      */
-    public interface OnItemClickListener {
-        void onItemClick(View view, int position);
+    public interface OnSceneClickListener {
+        void onSceneClick(View view, int position);
     }
 
     /**
@@ -192,7 +190,7 @@ public class MyButtonListAdapter
             // in the list where the user clicked. (This information is not normally available
             // in a standard OnClickListener, but added there for conveniently working with the
             // list.
-            if (mClickListener != null) mClickListener.onItemClick(view, getAdapterPosition());
+            if (mClickListener != null) mClickListener.onSceneClick(view, getAdapterPosition());
         }
     }
 

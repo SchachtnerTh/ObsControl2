@@ -1,4 +1,4 @@
-package de.tomschachtner.obscontrol2;
+package de.tomschachtner.obscontrol;
 
 import org.junit.Test;
 

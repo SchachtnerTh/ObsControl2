@@ -1,18 +1,11 @@
-package de.tomschachtner.obscontrol2;
+package de.tomschachtner.obscontrol;
 
-import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.util.Log;
-import android.widget.Button;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
-import androidx.preference.Preference;
 import androidx.preference.PreferenceManager;
-
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft;
@@ -24,7 +17,6 @@ import org.json.JSONObject;
 import java.net.ConnectException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.OpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -32,19 +24,24 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import de.tomschachtner.obscontrol2.obsdata.ObsScene;
-import de.tomschachtner.obscontrol2.obsdata.ObsScenesList;
-import de.tomschachtner.obscontrol2.obsdata.ObsSource;
+import de.tomschachtner.obscontrol.obsdata.ObsScene;
+import de.tomschachtner.obscontrol.obsdata.ObsScenesList;
+import de.tomschachtner.obscontrol.obsdata.ObsSource;
 
-import static java.lang.Thread.*;
-
-public class ObsWebSocketClient extends WebSocketClient {
+public class OBSWebSocketClient extends WebSocketClient {
 
     public static final String TAG = "ObsWebSocketClient_TS";
     public MainActivity mainAct;
     public status connStatus;
 
     public ObsScenesList obsScenes;
+    public ObsScene currentPreviewScene;
+    private boolean isStreaming = false;
+    private boolean isRecording = false;
+
+    public void updateScenes() {
+        getScenesList();
+    }
 
     public void getScenesList() {
         JSONObject jso;
@@ -99,6 +96,40 @@ public class ObsWebSocketClient extends WebSocketClient {
         }
     }
 
+    public void toggleSourceVisibility(String source) {
+        boolean isVisible=false;
+        for (int i = 0; i < currentPreviewScene.sources.size(); i++) {
+            if (currentPreviewScene.sources.get(i).name.equals(source)) {
+                isVisible = currentPreviewScene.sources.get(i).render;
+            }
+        }
+        setSourceVisible(currentPreviewScene.name,source,!isVisible);
+    }
+
+    public void toggleStreaming() {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "StartStopStreaming");
+            jso.put("message-id", "toggleStreaming_SCT");
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void toggleRecording() {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "StartStopRecording");
+            jso.put("message-id", "toggleRecording_SCT");
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
     public enum status {
         OPEN,
         CLOSED
@@ -109,11 +140,13 @@ public class ObsWebSocketClient extends WebSocketClient {
     /** Constructs a WebSocketClient with a Callback mechanism
      *
      */
-    public ObsWebSocketClient(URI serverUri, MainActivity activity) {
+    public OBSWebSocketClient(URI serverUri, MainActivity activity) {
         super(serverUri);
         mainAct = activity;
         connStatus = status.CLOSED;
         obsScenes = new ObsScenesList();
+        currentPreviewScene = new ObsScene(); // normally not needed, but on app start, this might not yet
+        // been initialized correctly, so we define a dummy empty scene so that app does not crash
     }
 
     /**
@@ -123,7 +156,7 @@ public class ObsWebSocketClient extends WebSocketClient {
      *
      * @param serverUri the server URI to connect to
      */
-    public ObsWebSocketClient(URI serverUri) {
+    public OBSWebSocketClient(URI serverUri) {
         super(serverUri);
     }
 
@@ -135,7 +168,7 @@ public class ObsWebSocketClient extends WebSocketClient {
      * @param serverUri     the server URI to connect to
      * @param protocolDraft The draft which should be used for this connection
      */
-    public ObsWebSocketClient(URI serverUri, Draft protocolDraft) {
+    public OBSWebSocketClient(URI serverUri, Draft protocolDraft) {
         super(serverUri, protocolDraft);
     }
 
@@ -148,7 +181,7 @@ public class ObsWebSocketClient extends WebSocketClient {
      * @param httpHeaders Additional HTTP-Headers
      * @since 1.3.8
      */
-    public ObsWebSocketClient(URI serverUri, Map<String, String> httpHeaders) {
+    public OBSWebSocketClient(URI serverUri, Map<String, String> httpHeaders) {
         super(serverUri, httpHeaders);
     }
 
@@ -162,7 +195,7 @@ public class ObsWebSocketClient extends WebSocketClient {
      * @param httpHeaders   Additional HTTP-Headers
      * @since 1.3.8
      */
-    public ObsWebSocketClient(URI serverUri, Draft protocolDraft, Map<String, String> httpHeaders) {
+    public OBSWebSocketClient(URI serverUri, Draft protocolDraft, Map<String, String> httpHeaders) {
         super(serverUri, protocolDraft, httpHeaders);
     }
 
@@ -176,7 +209,7 @@ public class ObsWebSocketClient extends WebSocketClient {
      * @param httpHeaders    Additional HTTP-Headers
      * @param connectTimeout The Timeout for the connection
      */
-    public ObsWebSocketClient(URI serverUri, Draft protocolDraft, Map<String, String> httpHeaders, int connectTimeout) {
+    public OBSWebSocketClient(URI serverUri, Draft protocolDraft, Map<String, String> httpHeaders, int connectTimeout) {
         super(serverUri, protocolDraft, httpHeaders, connectTimeout);
     }
 
@@ -224,7 +257,7 @@ public class ObsWebSocketClient extends WebSocketClient {
                         ToastInMainAct(jso.toString());
                         Log.d("TEST", jso.toString());
                         processAuthResult(jso);
-                        getScenesList();
+                        updateScenes();
                         break;
                     case "SceneList_SCT":
                         Log.d("TEST", jso.toString());
@@ -235,23 +268,90 @@ public class ObsWebSocketClient extends WebSocketClient {
                     case "transProgram_SCT":
                         Log.d("TEST", jso.toString());
                         TimeUnit.MILLISECONDS.sleep(200);
-                        getScenesList();
-                        invalidateAdapters();
+                        //updateScenes();
                         break;
                     case "GetPreviewScene_SCT":
                         Log.d("TEST", jso.toString());
-                        obsScenes.setCurrentPreviewScene(jso.getString("name"));
+                        setPreviewScene(jso);
+                        getStreamingStatus();
                         invalidateAdapters();
+                        break;
+                    case "changeScreenItemRender_SCT":
+                        Log.d("TEST", jso.toString());
+                        //updateScenes();
+                        break;
+                    case "getStreamingStatus_SCT":
+                        Log.d("TEST", jso.toString());
+                        updateStreamingStatus(jso);
+                        invalidateAdapters();
+                        break;
+                    case "toggleStreaming_SCT":
+                    case "toggleRecording_SCT":
+                        Log.d("TEST", jso.toString());
+                        updateScenes();
                         break;
                     default:
                         ToastInMainAct("Unbekannte Antwort vom WebService!");
                 }
+            } else if (jso.has("update-type")) {
+                //ToastInMainAct("Update from OBS");
+                updateScenes();
             }
+
         } catch (JSONException | InterruptedException e) {
             //e.printStackTrace();
             if (jso != null) Log.e("TEST", jso.toString());
         }
 
+    }
+
+    private void updateStreamingStatus(JSONObject jso) {
+        try {
+            isStreaming = jso.getBoolean("streaming");
+            isRecording = jso.getBoolean("recording");
+        } catch (JSONException jsonException) {
+            jsonException.printStackTrace();
+        }
+    }
+
+    private void getStreamingStatus() {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "GetStreamingStatus");
+            jso.put("message-id", "getStreamingStatus_SCT");
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void setPreviewScene(JSONObject jso) {
+        try {
+            obsScenes.setCurrentPreviewScene(jso.getString("name"));
+            for (int i = 0; i < obsScenes.scenes.size(); i++) {
+                if (obsScenes.scenes.get(i).name.equals(obsScenes.getCurrentPreviewScene())) {
+                    currentPreviewScene = obsScenes.scenes.get(i);
+                }
+            }
+        } catch (JSONException jsonException) {
+            jsonException.printStackTrace();
+        }
+    }
+
+    private void setSourceVisible(String scene, String source, boolean setVisible) {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "SetSceneItemRender");
+            jso.put("message-id", "changeScreenItemRender_SCT");
+            jso.put("scene-name", scene);
+            jso.put("source", source);
+            jso.put("render", setVisible);
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -275,6 +375,11 @@ public class ObsWebSocketClient extends WebSocketClient {
                     ObsSource obsSource = new ObsSource(source);
                     obsScene.sources.add(obsSource);
                 }
+//                if (obsScene.name.equals(obsScenes.getCurrentPreviewScene())) {
+//                    // if this scene is the currently active scene, also save it in the member
+//                    // variable currentScene for later re-use by the sources button list view.
+//                    currentPreviewScene = obsScene;
+//                }
                 obsScenes.scenes.add(obsScene);
             }
 
@@ -299,7 +404,10 @@ public class ObsWebSocketClient extends WebSocketClient {
             public void run() {
                 mObsScenesChangedListener.onObsScenesChanged(obsScenes);
                 mainAct.currentSceneName.setText(obsScenes.getCurrentScene());
-            }
+                mObsSourcesChangedListener.onObsSourcesChanged(currentPreviewScene);
+                mainAct.streamButton.setBackgroundResource(isStreaming ? R.drawable.on_air : R.drawable.not_on_air);
+                mainAct.recordButton.setBackgroundResource(isRecording ? R.drawable.on_air : R.drawable.not_on_air);
+           }
         });
    }
 
@@ -447,11 +555,28 @@ public class ObsWebSocketClient extends WebSocketClient {
     }
 
     /**
+     * Create an interface to be able to inform the RecyclerView adapter for the Sources about any
+     * changes if necessary
+     */
+    public interface ObsSourcesChangedListener {
+        void onObsSourcesChanged(ObsScene currentScene);
+    }
+
+    /**
      * This variable holds the listener that is informed about changes of the scenes list
      */
     ObsScenesChangedListener mObsScenesChangedListener;
 
     public void setOnObsScenesChangedListener(ObsScenesChangedListener listener) {
         this.mObsScenesChangedListener = listener;
+    }
+
+    /**
+     * This variable holds the listener that is informed about changes of the sources list
+     */
+    ObsSourcesChangedListener mObsSourcesChangedListener;
+
+    public void setOnObsSourcesChangedListener(ObsSourcesChangedListener listener) {
+        this.mObsSourcesChangedListener = listener;
     }
 }

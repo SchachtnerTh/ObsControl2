@@ -1,4 +1,4 @@
-package de.tomschachtner.obscontrol2;
+package de.tomschachtner.obscontrol;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -18,16 +18,18 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
+import android.view.ViewStub;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.concurrent.TimeUnit;
 
-public class MainActivity extends AppCompatActivity implements MyButtonListAdapter.OnItemClickListener {
+public class MainActivity
+        extends AppCompatActivity
+        implements OBSSceneButtonsAdapter.OnSceneClickListener, OBSSourceButtonsAdapter.OnSourceClickListener {
     public Context ctx = this;
     public void onConnectErrorFromWebService(String localizedMessage) {
         runOnUiThread(new Runnable() {
@@ -48,25 +50,32 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
     }
 
     @Override
-    public void onItemClick(View view, int position) {
-        Log.i("TEST", "You clicked number " + adapter.getItem(position) + ", which is at cell position " + position);
-        mOBSWebSocketClient.switchActiveScene(adapter.getItem(position));
+    public void onSceneClick(View view, int position) {
+        Log.i("TEST", "You clicked number " + sceneButtonsAdapter.getItem(position) + ", which is at cell position " + position);
+        mOBSWebSocketClient.switchActiveScene(sceneButtonsAdapter.getItem(position));
+    }
+
+    @Override
+    public void onSourceClick(View view, int position) {
+        Log.i("TEST", "You clicked number " + sourceButtonsAdapter.getItem(position) + ", which is at cell position " + position);
+        mOBSWebSocketClient.toggleSourceVisibility(sourceButtonsAdapter.getItem(position));
     }
 
     /**
      * called after a new scenes list was received from OBS
      */
     public void newScenesAvailable() {
-        RecyclerView vButtonList = findViewById(R.id.button_list);
         int numberOfColumns = 4;
-        vButtonList.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
-        if (adapter == null) {
-            adapter = new MyButtonListAdapter(this, mOBSWebSocketClient.obsScenes);
-            adapter.setClickListener(this);
-            mOBSWebSocketClient.setOnObsScenesChangedListener(adapter);
-            vButtonList.setAdapter(adapter);
+        obsScenesButtons.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
+        // TODO: Is this following block necessary? When can we get into it?
+        if (sceneButtonsAdapter == null) {
+            sceneButtonsAdapter = new OBSSceneButtonsAdapter(this, mOBSWebSocketClient.obsScenes);
+            sceneButtonsAdapter.setSceneClickListener(this);
+            mOBSWebSocketClient.setOnObsScenesChangedListener(sceneButtonsAdapter);
+            obsScenesButtons.setAdapter(sceneButtonsAdapter);
         }
     }
+
 
     enum status {
         OPEN,
@@ -75,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
     }
     private status connectionStatus = status.CLOSED;
     private static final String TAG = "TS";
-    ObsWebSocketClient mOBSWebSocketClient;
+    OBSWebSocketClient mOBSWebSocketClient;
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -89,7 +98,16 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
     public boolean onPrepareOptionsMenu(Menu menu) {
         super.onPrepareOptionsMenu(menu);
         MenuItem logInMenuItem = menu.findItem(R.id.logon);
-        logInMenuItem.setEnabled(mOBSWebSocketClient.connStatus == ObsWebSocketClient.status.CLOSED);
+        if (mOBSWebSocketClient == null) {
+            logInMenuItem.setEnabled(false);
+        } else {
+            // on first start of the app, mOBSWebSocketClient might not have been initialized, as
+            // the SettingsActivity activity will be shown to give the user the opportunity to con-
+            // figure server settings and passwort.
+            // in this case, we might find ourselves within this callback and without a valid
+            // mOBSWebSocketClient property. In this case mark the menu item as "not available"
+            logInMenuItem.setEnabled(mOBSWebSocketClient.connStatus == OBSWebSocketClient.status.CLOSED);
+        }
         return true;
     }
 
@@ -111,7 +129,14 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
 
     TextView connectStatusIndicator;
     public TextView currentSceneName;
-    MyButtonListAdapter adapter;
+    public RecyclerView obsScenesButtons;
+    public RecyclerView obsSourcesButtons;
+    public Button transition;
+    public ImageButton streamButton;
+    public ImageButton recordButton;
+    OBSSceneButtonsAdapter sceneButtonsAdapter;
+    OBSSourceButtonsAdapter sourceButtonsAdapter;
+    View vScenesSources;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -122,13 +147,46 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
             Intent i = new Intent(this, SettingsActivity.class);
             startActivity(i);
         } else {
-            setContentView(R.layout.activity_main);
-            RecyclerView vButtonList = findViewById(R.id.button_list);
-            Button transition = findViewById(R.id.transition_to_program);
+
+            // configure the layout for this activity
+            //setContentView(R.layout.activity_main);
+
+            setContentView(R.layout.activity_root_layout);
+
+            ViewStub stub = (ViewStub)findViewById(R.id.child_view);
+            stub.setLayoutResource(R.layout.activity_main);
+            vScenesSources = stub.inflate();
+
+            // link variables to the UI elements
+            obsScenesButtons = findViewById(R.id.scenes_button_list);
+            transition = findViewById(R.id.transition_to_program);
+            connectStatusIndicator = findViewById(R.id.connect_status);
+            currentSceneName = findViewById(R.id.aktive_szene_display);
+            obsSourcesButtons = findViewById(R.id.sources_button_list);
+            streamButton = findViewById(R.id.stream_button);
+            recordButton = findViewById(R.id.record_button);
+
+
             transition.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     mOBSWebSocketClient.doTransitionToProgram();
+                }
+            });
+
+            streamButton.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View view) {
+                    mOBSWebSocketClient.toggleStreaming();
+                    return true;
+                }
+            });
+
+            recordButton.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View view) {
+                    mOBSWebSocketClient.toggleRecording();
+                    return true;
                 }
             });
 
@@ -140,17 +198,22 @@ public class MainActivity extends AppCompatActivity implements MyButtonListAdapt
                 return;
             }
 
-            mOBSWebSocketClient = new ObsWebSocketClient(webSocketURI, this);
+            mOBSWebSocketClient = new OBSWebSocketClient(webSocketURI, this);
 
-            int numberOfColumns = 4;
-            vButtonList.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
-            adapter = new MyButtonListAdapter(this, mOBSWebSocketClient.obsScenes);
-            adapter.setClickListener(this);
-            mOBSWebSocketClient.setOnObsScenesChangedListener(adapter);
+            int numberOfScenesColumns = 4;
+            obsScenesButtons.setLayoutManager(new GridLayoutManager(this, numberOfScenesColumns));
+            sceneButtonsAdapter = new OBSSceneButtonsAdapter(this, mOBSWebSocketClient.obsScenes);
+            sceneButtonsAdapter.setSceneClickListener(this);
+            mOBSWebSocketClient.setOnObsScenesChangedListener(sceneButtonsAdapter);
+            obsScenesButtons.setAdapter(sceneButtonsAdapter);
 
-            vButtonList.setAdapter(adapter);
-            connectStatusIndicator = findViewById(R.id.connect_status);
-            currentSceneName = findViewById(R.id.aktive_szene_display);
+            int numberOfSourcesColumns = 4;
+            obsSourcesButtons.setLayoutManager(new GridLayoutManager(this, numberOfSourcesColumns));
+            sourceButtonsAdapter = new OBSSourceButtonsAdapter(this, mOBSWebSocketClient.currentPreviewScene);
+            sourceButtonsAdapter.setSourceClickListener(this);
+            mOBSWebSocketClient.setOnObsSourcesChangedListener(sourceButtonsAdapter);
+            obsSourcesButtons.setAdapter(sourceButtonsAdapter);
+
             setConnectStatusIndicator(status.CLOSED);
 
             verbindenMitWebService();

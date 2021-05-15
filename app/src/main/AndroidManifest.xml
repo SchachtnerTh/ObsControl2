@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="de.tomschachtner.obscontrol2">
+    package="de.tomschachtner.obscontrol">
 
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -12,10 +12,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ObsControl2">
         <activity
-            android:name=".SettingsActivity"
+            android:name="de.tomschachtner.obscontrol.SettingsActivity"
             android:label="@string/title_activity_settings"
-            android:parentActivityName=".MainActivity" />
-        <activity android:name=".MainActivity">
+            android:parentActivityName="de.tomschachtner.obscontrol.MainActivity" />
+        <activity android:name="de.tomschachtner.obscontrol.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

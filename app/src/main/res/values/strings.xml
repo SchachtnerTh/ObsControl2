@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ObsControl2</string>
+    <string name="app_name">OBS Control</string>
     <string name="title_activity_settings">SettingsActivity</string>
 
     <!-- Preference Titles -->
@@ -20,9 +20,12 @@
     <string name="strAuthentication">Authentifizierung</string>
     <string name="strPassword">Passwort</string>
     <string name="strLogon">Anmelden</string>
-    <string name="str_transition_to_program"><![CDATA[Vorschau --> Program]]></string>
+    <string name="str_transition_to_program">Vorschau --> Programm</string>
     <string name="obs_remote_ws_host_caption">OBS Remobe Webservice host</string>
     <string name="ws_host">Webservice Host</string>
     <string name="ws_port">Webservice Port</string>
     <string name="active_scene_caption">aktive Szene:</string>
+    <string name="tab_scenes">Szenen</string>
+    <string name="tab_hotkeys">Hotkeys</string>
+    <string name="transitions_volumes">Trans/Vol</string>
 </resources>

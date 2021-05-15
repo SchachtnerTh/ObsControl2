@@ -1,4 +1,4 @@
-package de.tomschachtner.obscontrol2.obsdata;
+package de.tomschachtner.obscontrol.obsdata;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,7 +31,7 @@ public class ObsSource {
             int id, 
             boolean locked, 
             boolean muted, 
-            String name, 
+            String name,
             boolean render,
             int source_cx,
             int source_cy,
@@ -82,12 +82,12 @@ public class ObsSource {
     int cy;
     int id;
     boolean locked;
-    boolean muted;
-    String name;
-    boolean render;
+    public boolean muted;
+    public String name;
+    public boolean render;
     int source_cx;
     int source_cy;
-    String type;
+    public String type;
     int volume;
     int x;
     int y;
