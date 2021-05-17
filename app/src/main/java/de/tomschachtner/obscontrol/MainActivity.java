@@ -3,15 +3,16 @@ package de.tomschachtner.obscontrol;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -19,17 +20,17 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewStub;
-import android.widget.Button;
-import android.widget.ImageButton;
-import android.widget.TextView;
+import android.widget.LinearLayout;
 import android.widget.Toast;
+
+import com.google.android.material.tabs.TabLayout;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class MainActivity
         extends AppCompatActivity
-        implements OBSSceneButtonsAdapter.OnSceneClickListener, OBSSourceButtonsAdapter.OnSourceClickListener {
+         {
     public Context ctx = this;
     public void onConnectErrorFromWebService(String localizedMessage) {
         runOnUiThread(new Runnable() {
@@ -49,32 +50,6 @@ public class MainActivity
         });
     }
 
-    @Override
-    public void onSceneClick(View view, int position) {
-        Log.i("TEST", "You clicked number " + sceneButtonsAdapter.getItem(position) + ", which is at cell position " + position);
-        mOBSWebSocketClient.switchActiveScene(sceneButtonsAdapter.getItem(position));
-    }
-
-    @Override
-    public void onSourceClick(View view, int position) {
-        Log.i("TEST", "You clicked number " + sourceButtonsAdapter.getItem(position) + ", which is at cell position " + position);
-        mOBSWebSocketClient.toggleSourceVisibility(sourceButtonsAdapter.getItem(position));
-    }
-
-    /**
-     * called after a new scenes list was received from OBS
-     */
-    public void newScenesAvailable() {
-        int numberOfColumns = 4;
-        obsScenesButtons.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
-        // TODO: Is this following block necessary? When can we get into it?
-        if (sceneButtonsAdapter == null) {
-            sceneButtonsAdapter = new OBSSceneButtonsAdapter(this, mOBSWebSocketClient.obsScenes);
-            sceneButtonsAdapter.setSceneClickListener(this);
-            mOBSWebSocketClient.setOnObsScenesChangedListener(sceneButtonsAdapter);
-            obsScenesButtons.setAdapter(sceneButtonsAdapter);
-        }
-    }
 
 
     enum status {
@@ -82,9 +57,11 @@ public class MainActivity
         CONNECTING,
         CLOSED
     }
+
+
     private status connectionStatus = status.CLOSED;
     private static final String TAG = "TS";
-    OBSWebSocketClient mOBSWebSocketClient;
+    public OBSWebSocketClient mOBSWebSocketClient;
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -106,7 +83,7 @@ public class MainActivity
             // figure server settings and passwort.
             // in this case, we might find ourselves within this callback and without a valid
             // mOBSWebSocketClient property. In this case mark the menu item as "not available"
-            logInMenuItem.setEnabled(mOBSWebSocketClient.connStatus == OBSWebSocketClient.status.CLOSED);
+            logInMenuItem.setEnabled(mOBSWebSocketClient.connStatus == status.CLOSED);
         }
         return true;
     }
@@ -127,15 +104,14 @@ public class MainActivity
         return true;
     }
 
-    TextView connectStatusIndicator;
-    public TextView currentSceneName;
-    public RecyclerView obsScenesButtons;
-    public RecyclerView obsSourcesButtons;
-    public Button transition;
-    public ImageButton streamButton;
-    public ImageButton recordButton;
-    OBSSceneButtonsAdapter sceneButtonsAdapter;
-    OBSSourceButtonsAdapter sourceButtonsAdapter;
+    private ViewStub clientView;
+    private LinearLayout rootLayout;
+    public TabLayout categoryTabs;
+
+    ScenesFragment scenesFragment;
+    TransitionsVolumesFragment transitionsVolumesFragment;
+    HotkeysFragment hotkeysFragment;
+
     View vScenesSources;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -152,41 +128,61 @@ public class MainActivity
             //setContentView(R.layout.activity_main);
 
             setContentView(R.layout.activity_root_layout);
-
-            ViewStub stub = (ViewStub)findViewById(R.id.child_view);
-            stub.setLayoutResource(R.layout.activity_main);
-            vScenesSources = stub.inflate();
-
-            // link variables to the UI elements
-            obsScenesButtons = findViewById(R.id.scenes_button_list);
-            transition = findViewById(R.id.transition_to_program);
-            connectStatusIndicator = findViewById(R.id.connect_status);
-            currentSceneName = findViewById(R.id.aktive_szene_display);
-            obsSourcesButtons = findViewById(R.id.sources_button_list);
-            streamButton = findViewById(R.id.stream_button);
-            recordButton = findViewById(R.id.record_button);
+            //rootLayout = findViewById(R.id.root_layout);
+            scenesFragment = new ScenesFragment();
+            transitionsVolumesFragment = new TransitionsVolumesFragment();
+            hotkeysFragment = new HotkeysFragment();
+            FragmentManager fm = getSupportFragmentManager();
+            FragmentTransaction ft = fm.beginTransaction();
+            ft.replace(R.id.simple_frame_layout, scenesFragment);
+            ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_CLOSE);
+            ft.commit();
 
 
-            transition.setOnClickListener(new View.OnClickListener() {
+            //clientView = (ViewStub)findViewById(R.id.child_view);
+            //clientView.setLayoutResource(R.layout.scenes_tab);
+
+            //vScenesSources = clientView.inflate();
+
+
+            categoryTabs = findViewById(R.id.category_tabs);
+
+            categoryTabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
                 @Override
-                public void onClick(View view) {
-                    mOBSWebSocketClient.doTransitionToProgram();
+                public void onTabSelected(TabLayout.Tab tab) {
+                    Fragment fragment = null;
+                    FragmentManager fm = getSupportFragmentManager();
+                    FragmentTransaction ft = fm.beginTransaction();
+                    switch (tab.getPosition()) {
+                        case 0:
+                            Log.d("TEST", "Scenes tab.");
+                            ft.replace(R.id.simple_frame_layout, scenesFragment);
+                            break;
+                        case 1:
+                            Log.d("TEST", "Trans/Vol tab.");
+                            ft.replace(R.id.simple_frame_layout, transitionsVolumesFragment);
+                            break;
+                        case 2:
+                            Log.d("TEST", "Hotkeys tab.");
+                            ft.replace(R.id.simple_frame_layout, hotkeysFragment);
+                            break;
+                        default:
+                            Log.d("TEST", "no tab.");
+                    }
+
+                    //ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_CLOSE);
+                    ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
+                    ft.commit();
                 }
-            });
 
-            streamButton.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
-                public boolean onLongClick(View view) {
-                    mOBSWebSocketClient.toggleStreaming();
-                    return true;
+                public void onTabUnselected(TabLayout.Tab tab) {
+
                 }
-            });
 
-            recordButton.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
-                public boolean onLongClick(View view) {
-                    mOBSWebSocketClient.toggleRecording();
-                    return true;
+                public void onTabReselected(TabLayout.Tab tab) {
+
                 }
             });
 
@@ -194,63 +190,35 @@ public class MainActivity
             try {
                 webSocketURI = new URI("ws://" + host + ":" + port + "/");
             } catch (URISyntaxException e) {
+                webSocketURI=null;
                 e.printStackTrace();
-                return;
             }
 
             mOBSWebSocketClient = new OBSWebSocketClient(webSocketURI, this);
+            //setConnectStatusIndicator(MainActivity.status.CLOSED);
 
-            int numberOfScenesColumns = 4;
-            obsScenesButtons.setLayoutManager(new GridLayoutManager(this, numberOfScenesColumns));
-            sceneButtonsAdapter = new OBSSceneButtonsAdapter(this, mOBSWebSocketClient.obsScenes);
-            sceneButtonsAdapter.setSceneClickListener(this);
-            mOBSWebSocketClient.setOnObsScenesChangedListener(sceneButtonsAdapter);
-            obsScenesButtons.setAdapter(sceneButtonsAdapter);
-
-            int numberOfSourcesColumns = 4;
-            obsSourcesButtons.setLayoutManager(new GridLayoutManager(this, numberOfSourcesColumns));
-            sourceButtonsAdapter = new OBSSourceButtonsAdapter(this, mOBSWebSocketClient.currentPreviewScene);
-            sourceButtonsAdapter.setSourceClickListener(this);
-            mOBSWebSocketClient.setOnObsSourcesChangedListener(sourceButtonsAdapter);
-            obsSourcesButtons.setAdapter(sourceButtonsAdapter);
-
-            setConnectStatusIndicator(status.CLOSED);
 
             verbindenMitWebService();
+
+
+
+
+
         }
+
     }
 
-    private void setConnectStatusIndicator(status statusIndicator) {
-        switch (statusIndicator){
-            case CLOSED:
-                connectStatusIndicator.setText("OFFLINE");
-                connectStatusIndicator.setBackgroundColor(Color.RED);
-                break;
-            case OPEN:
-                connectStatusIndicator.setText("ONLINE");
-                connectStatusIndicator.setBackgroundColor(Color.GREEN);
-                break;
-            case CONNECTING:
-                connectStatusIndicator.setText("Verbinden");
-                connectStatusIndicator.setBackgroundColor(Color.YELLOW);
-                break;
-            default:
-                connectStatusIndicator.setText("UNDEFINED!");
-                connectStatusIndicator.setBackgroundColor(Color.RED);
-        }
-    }
-
-    private void verbindenMitWebService() {
-
+    public void verbindenMitWebService() {
         mOBSWebSocketClient.connect();
-        setConnectStatusIndicator(status.CONNECTING);
+        scenesFragment.setConnectStatusIndicator(status.CONNECTING);
     }
+
 
     void onConnectedToWebService() {
         //Toast.makeText(this, "Yeah!", Toast.LENGTH_SHORT).show();
         mOBSWebSocketClient.checkAuthentication();
         invalidateOptionsMenu();
-        setConnectStatusIndicator(status.OPEN);
+        scenesFragment.setConnectStatusIndicator(status.OPEN);
         //mOBSWebSocketClient.getScenesList();
     }
 
@@ -262,6 +230,6 @@ public class MainActivity
     public void onDisconnectedFromWebService() {
         //Toast.makeText(this, "Yeah!", Toast.LENGTH_SHORT).show();
         invalidateOptionsMenu();
-        setConnectStatusIndicator(status.CLOSED);
+        ///scenesFragment.setConnectStatusIndicator(status.CLOSED);
     }
 }

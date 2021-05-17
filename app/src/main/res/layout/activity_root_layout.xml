@@ -7,31 +7,35 @@
     android:orientation="vertical">
 
     <com.google.android.material.tabs.TabLayout
+        android:id="@+id/category_tabs"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
         <com.google.android.material.tabs.TabItem
+            android:id="@+id/tab_szenen"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/tab_scenes" />
 
         <com.google.android.material.tabs.TabItem
-            android:id="@+id/tabItem"
+            android:id="@+id/tab_transvol"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/transitions_volumes" />
 
         <com.google.android.material.tabs.TabItem
+            android:id="@+id/tab_hotkeys"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/tab_hotkeys" />
 
     </com.google.android.material.tabs.TabLayout>
 
-    <ViewStub
-        android:id="@+id/child_view"
+    <FrameLayout
+        android:id="@+id/simple_frame_layout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout="@layout/activity_main" />
+        android:layout_height="match_parent">
+
+    </FrameLayout>
 
 </LinearLayout>

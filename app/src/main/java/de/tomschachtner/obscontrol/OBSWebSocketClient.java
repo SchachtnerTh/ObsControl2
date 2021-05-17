@@ -27,17 +27,21 @@ import java.util.concurrent.TimeUnit;
 import de.tomschachtner.obscontrol.obsdata.ObsScene;
 import de.tomschachtner.obscontrol.obsdata.ObsScenesList;
 import de.tomschachtner.obscontrol.obsdata.ObsSource;
+import de.tomschachtner.obscontrol.obsdata.ObsTransitionsList;
 
 public class OBSWebSocketClient extends WebSocketClient {
 
     public static final String TAG = "ObsWebSocketClient_TS";
     public MainActivity mainAct;
-    public status connStatus;
+    public MainActivity.status connStatus;
 
     public ObsScenesList obsScenes;
     public ObsScene currentPreviewScene;
+    public ObsTransitionsList transitionsList;
+
     private boolean isStreaming = false;
     private boolean isRecording = false;
+    private boolean bPendingTransition = false; // used to signal that a transition is currently going on
 
     public void updateScenes() {
         getScenesList();
@@ -130,12 +134,51 @@ public class OBSWebSocketClient extends WebSocketClient {
         }
     }
 
+    public void getTransitionsList() {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "GetTransitionList");
+            jso.put("message-id", "translitionsList_SCT");
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void makeCustomTransition(String customTransitionName) {
+        JSONObject jso;
+        try {
+            JSONObject trans = new JSONObject();
+            trans.put("name", customTransitionName);
+            jso = new JSONObject();
+            jso.put("request-type", "TransitionToProgram");
+             jso.put("message-id", "transProgramCustom_SCT");
+            jso.put("with-transition.name", "CustomTransition");
+            jso.put("with-transition", trans);
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void setCurrentTransition(String newCurrentTransition) {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "SetCurrentTransition");
+            jso.put("message-id", "NewCurrentTransition_SCT");
+            jso.put("transition-name", newCurrentTransition);
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
     public enum status {
         OPEN,
         CLOSED
     }
-
-    boolean SettingsActivityRunningForPassword = false;
 
     /** Constructs a WebSocketClient with a Callback mechanism
      *
@@ -143,10 +186,11 @@ public class OBSWebSocketClient extends WebSocketClient {
     public OBSWebSocketClient(URI serverUri, MainActivity activity) {
         super(serverUri);
         mainAct = activity;
-        connStatus = status.CLOSED;
+        connStatus = MainActivity.status.CLOSED;
         obsScenes = new ObsScenesList();
         currentPreviewScene = new ObsScene(); // normally not needed, but on app start, this might not yet
         // been initialized correctly, so we define a dummy empty scene so that app does not crash
+        transitionsList = new ObsTransitionsList();
     }
 
     /**
@@ -230,7 +274,7 @@ public class OBSWebSocketClient extends WebSocketClient {
 //
 //            }
 //        });
-        connStatus = status.OPEN;
+        connStatus = MainActivity.status.OPEN;
         mainAct.onConnectedToWebService();
     }
 
@@ -290,11 +334,32 @@ public class OBSWebSocketClient extends WebSocketClient {
                         Log.d("TEST", jso.toString());
                         updateScenes();
                         break;
+                    case "translitionsList_SCT":
+                        Log.d("TEST", jso.toString());
+                        updateTransitionsList(jso);
+                        invalidateAdapters();
+                        break;
+                    case "transProgramCustom_SCT":
+                        Log.d("TEST", jso.toString());
+                        bPendingTransition = true; 
+                        // Is not thread-safe: There could be another transaction kicking in while this transaction is still running...
+                        TimeUnit.MILLISECONDS.sleep(200);
+                        break;
+                    case "NewCurrentTransition_SCT":
+                        Log.d("TEST", jso.toString());
+                        getTransitionsList();
+                        break;
                     default:
                         ToastInMainAct("Unbekannte Antwort vom WebService!");
                 }
             } else if (jso.has("update-type")) {
                 //ToastInMainAct("Update from OBS");
+                Log.e("TEST", jso.toString());
+                if (jso.getString("update-type").equals("TransitionEnd") && bPendingTransition) {
+                    bPendingTransition = false;
+                    backToOriginalDefaultTransition();
+                    TimeUnit.MILLISECONDS.sleep(200);
+                }
                 updateScenes();
             }
 
@@ -304,6 +369,31 @@ public class OBSWebSocketClient extends WebSocketClient {
         }
 
     }
+
+    private void backToOriginalDefaultTransition() {
+        JSONObject jso;
+        try {
+            jso = new JSONObject();
+            jso.put("request-type", "SetCurrentTransition");
+            jso.put("message-id", "setCurrentTransitionBack_SCT");
+            jso.put("transition-name", transitionsList.getCurrentTransition());
+            send(jso.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }   }
+
+    private void updateTransitionsList(JSONObject jso) {
+        try {
+            transitionsList.setCurrentTransition(jso.getString("current-transition"));
+            JSONArray transitionsArr = jso.getJSONArray("transitions");
+            transitionsList.transitions.clear();
+            for (int i = 0; i < transitionsArr.length(); i++) {
+                transitionsList.transitions.add(transitionsArr.getJSONObject(i).getString("name"));
+            }
+        } catch (JSONException jsonException) {
+            jsonException.printStackTrace();
+        }
+     }
 
     private void updateStreamingStatus(JSONObject jso) {
         try {
@@ -403,10 +493,11 @@ public class OBSWebSocketClient extends WebSocketClient {
             @Override
             public void run() {
                 mObsScenesChangedListener.onObsScenesChanged(obsScenes);
-                mainAct.currentSceneName.setText(obsScenes.getCurrentScene());
+                mainAct.scenesFragment.currentSceneName.setText(obsScenes.getCurrentScene());
                 mObsSourcesChangedListener.onObsSourcesChanged(currentPreviewScene);
-                mainAct.streamButton.setBackgroundResource(isStreaming ? R.drawable.on_air : R.drawable.not_on_air);
-                mainAct.recordButton.setBackgroundResource(isRecording ? R.drawable.on_air : R.drawable.not_on_air);
+                mainAct.scenesFragment.streamButton.setBackgroundResource(isStreaming ? R.drawable.on_air : R.drawable.not_on_air);
+                mainAct.scenesFragment.recordButton.setBackgroundResource(isRecording ? R.drawable.on_air : R.drawable.not_on_air);
+                if (mObsTransitionsChangedListener != null) mObsTransitionsChangedListener.onObsTransitionsChanged(transitionsList);
            }
         });
    }
@@ -515,7 +606,7 @@ public class OBSWebSocketClient extends WebSocketClient {
      **/
     @Override
     public void onClose(int code, String reason, boolean remote) {
-        connStatus = status.CLOSED;
+        connStatus = MainActivity.status.CLOSED;
         mainAct.onDisconnectedFromWebService();
     }
 
@@ -562,6 +653,10 @@ public class OBSWebSocketClient extends WebSocketClient {
         void onObsSourcesChanged(ObsScene currentScene);
     }
 
+    public interface ObsTransitionsChangedListener {
+        void onObsTransitionsChanged(ObsTransitionsList transitions);
+    }
+
     /**
      * This variable holds the listener that is informed about changes of the scenes list
      */
@@ -575,8 +670,14 @@ public class OBSWebSocketClient extends WebSocketClient {
      * This variable holds the listener that is informed about changes of the sources list
      */
     ObsSourcesChangedListener mObsSourcesChangedListener;
+    ObsTransitionsChangedListener mObsTransitionsChangedListener;
 
     public void setOnObsSourcesChangedListener(ObsSourcesChangedListener listener) {
         this.mObsSourcesChangedListener = listener;
     }
+
+    public void setOnObsTransitionsChangedListener(ObsTransitionsChangedListener listener) {
+        this.mObsTransitionsChangedListener = listener;
+    }
+
 }
