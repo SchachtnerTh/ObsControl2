@@ -1,12 +1,10 @@
 package de.tomschachtner.obscontrol;
 
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.Fragment;
-import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -19,9 +17,6 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.google.android.material.tabs.TabItem;
-
-import java.net.URI;
-import java.net.URISyntaxException;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -87,6 +82,7 @@ public class ScenesFragment
             @Override
             public void onClick(View view) {
                 theActivity.mOBSWebSocketClient.doTransitionToProgram();
+                //theActivity.mOBSWebSocketClient.getAudioSourcesList();
             }
         });
 
@@ -136,13 +132,13 @@ public class ScenesFragment
     @Override
     public void onSceneClick(View view, int position) {
         Log.i("TEST", "You clicked number " + sceneButtonsAdapter.getItem(position) + ", which is at cell position " + position);
-        theActivity.mOBSWebSocketClient.switchActiveScene(sceneButtonsAdapter.getItem(position));
+        theActivity.mOBSWebSocketClient.switchPreviewScene(sceneButtonsAdapter.getItem(position));
     }
 
     @Override
     public void onSourceClick(View view, int position) {
         Log.i("TEST", "You clicked number " + sourceButtonsAdapter.getItem(position) + ", which is at cell position " + position);
-        theActivity.mOBSWebSocketClient.toggleSourceVisibility(sourceButtonsAdapter.getItem(position));
+        theActivity.mOBSWebSocketClient.toggleSceneItemVisibility(sourceButtonsAdapter.getItem(position));
     }
 
     public void setConnectStatusIndicator(MainActivity.status statusIndicator) {

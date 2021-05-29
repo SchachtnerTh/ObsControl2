@@ -3,9 +3,9 @@ package de.tomschachtner.obscontrol.obsdata;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class ObsSource {
+public class ObsSceneItem {
     /**
-     * Constructs an ObsSource class instance with all available properties
+     * Constructs an ObsSceneItem class instance with all available properties
      * @param alignment The point on the source that the item is manipulated from.
      *                  The sum of 1=Left or 2=Right, and 4=Top or 8=Bottom,
      *                  or omit to center on that axis.
@@ -24,7 +24,7 @@ public class ObsSource {
      * @param x (unknown)
      * @param y (unknown)
      */
-    public ObsSource (
+    public ObsSceneItem(
             int alignment, 
             int cx, 
             int cy, 
@@ -55,7 +55,7 @@ public class ObsSource {
         this.y=y;
     }
 
-    public ObsSource(JSONObject jsonObject) {
+    public ObsSceneItem(JSONObject jsonObject) {
         try {
             this.alignment=jsonObject.getInt("alignment");
             this.cx=jsonObject.getInt("cx");

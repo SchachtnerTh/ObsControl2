@@ -5,12 +5,15 @@ import android.os.Bundle;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CompoundButton;
+import android.widget.SeekBar;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -19,7 +22,7 @@ import android.view.ViewGroup;
  */
 public class TransitionsVolumesFragment
        extends Fragment
-        implements OBSTransitionsButtonsAdapter.OnTransitionsClickListener, OBSTransitionsButtonsAdapter.OnTransitionsLongClickListener {
+        implements OBSTransitionsButtonsAdapter.OnTransitionsClickListener, OBSTransitionsButtonsAdapter.OnTransitionsLongClickListener, OBSAudioSourcesSlidersAdapter.OnMuteButtonChangedListener, OBSAudioSourcesSlidersAdapter.OnVolumeChangedListener {
 
     public TransitionsVolumesFragment() {
         // Required empty public constructor
@@ -30,6 +33,12 @@ public class TransitionsVolumesFragment
 
     RecyclerView obsTransitionsButtons;
     OBSTransitionsButtonsAdapter transitionsButtonsAdapter;
+
+    RecyclerView volumesSliderView;
+    OBSAudioSourcesSlidersAdapter obsAudioSourcesSlidersAdapter;
+
+//    RecyclerView obsAudioSourcesSliders;
+//    OBSAudioSourcesSlidersAdapter obsAudioSourcesSlidersAdapter;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -45,8 +54,10 @@ public class TransitionsVolumesFragment
         ConstraintLayout cl = (ConstraintLayout) inflater.inflate(R.layout.fragment_transitions_volumes, container, false);
 
         obsTransitionsButtons = cl.findViewById(R.id.transitions_view);
+        volumesSliderView = cl.findViewById(R.id.volumeSliderView);
 
-        client.getTransitionsList();
+        client.getTransitionsList_req();
+        client.getAudioSourcesList_req();
 
         int numberOfScenesColumns = 4;
         obsTransitionsButtons.setLayoutManager(new GridLayoutManager(getContext(), numberOfScenesColumns));
@@ -56,6 +67,12 @@ public class TransitionsVolumesFragment
         theActivity.mOBSWebSocketClient.setOnObsTransitionsChangedListener(transitionsButtonsAdapter);
         obsTransitionsButtons.setAdapter(transitionsButtonsAdapter);
 
+        volumesSliderView.setLayoutManager(new LinearLayoutManager(getContext()));
+        obsAudioSourcesSlidersAdapter = new OBSAudioSourcesSlidersAdapter(getContext(), client.obsAudioSources);
+        obsAudioSourcesSlidersAdapter.setMuteButtonChangedListener(this);
+        obsAudioSourcesSlidersAdapter.setVolumeChangedListener(this);
+        theActivity.mOBSWebSocketClient.setOnObsAudioChangedListener(obsAudioSourcesSlidersAdapter);
+        volumesSliderView.setAdapter(obsAudioSourcesSlidersAdapter);
 
         return cl;
     }
@@ -73,5 +90,37 @@ public class TransitionsVolumesFragment
     public void onTransitionLongClick(View view, int position) {
         Log.i("TEST", "You clicked number " + transitionsButtonsAdapter.getItem(position) + ", which is at cell position " + position);
         client.setCurrentTransition(transitionsButtonsAdapter.getItem(position));
+    }
+
+
+    @Override
+    public void onVolumeChanged(View view, int volume, boolean fromUser, int adapterPosition) {
+        if (adapterPosition == -1) {
+            String name = ((SeekBar)view).getTag().toString();
+            for (int i = 0; i < client.obsAudioSources.size(); i++) {
+                if (client.obsAudioSources.get(i).name.equals(name)) adapterPosition = i;
+            }
+        }
+        if (fromUser) {
+            client.setVolume(adapterPosition, volume);
+        }
+    }
+
+    @Override
+    public void onVolumeStartTracking(View view, int position) {
+        Log.d("TEST", "In onVolumeStartTracking");
+        client.startUserVolumeChange();
+    }
+
+    @Override
+    public void onVolumeStopTracking(View view, int position) {
+        Log.d("TEST", "In onVolumeStopTracking");
+        client.stopUserVolumeChange();
+    }
+
+    @Override
+    public void onMuteButtonChanged(View view, int position) {
+        Log.i("TEST", "You pressed the MUTE button. Current slider number: " + position);
+        client.setMute(position, ((CompoundButton)view).isChecked());
     }
 }

@@ -4,9 +4,9 @@ import java.util.ArrayList;
 
 public class ObsScene {
     public String name;
-    public ArrayList<ObsSource> sources;
+    public ArrayList<ObsSceneItem> sceneItems;
 
     public ObsScene() {
-        sources = new ArrayList<>();
+        sceneItems = new ArrayList<>();
     }
 }

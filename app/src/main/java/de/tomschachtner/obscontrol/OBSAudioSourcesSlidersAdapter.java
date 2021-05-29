@@ -1,25 +1,36 @@
 package de.tomschachtner.obscontrol;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CompoundButton;
+import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.ToggleButton;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.jetbrains.annotations.NotNull;
 
-import de.tomschachtner.obscontrol.obsdata.ObsScene;
+import java.util.ArrayList;
 
-public class OBSSourceButtonsAdapter
-        extends RecyclerView.Adapter<OBSSourceButtonsAdapter.ViewHolder>
-        implements OBSWebSocketClient.ObsSourcesChangedListener {
+import de.tomschachtner.obscontrol.obsdata.OBSAudioSource;
+import de.tomschachtner.obscontrol.obsdata.ObsTransitionsList;
 
-    private ObsScene mData;
+public class OBSAudioSourcesSlidersAdapter
+        extends RecyclerView.Adapter<OBSAudioSourcesSlidersAdapter.ViewHolder>
+        implements OBSWebSocketClient.ObsAudioChangedListener {
+
+    //TODO: Determine the structure of the audioSourcesList structure
+    private ArrayList<OBSAudioSource> mData;
     private LayoutInflater mInflater;
-    private OnSourceClickListener mClickListener;
+
+    //TODO: Change listeners to match the sliders' messages
+    private OnMuteButtonChangedListener mMuteButtonChangedListener;
+    private OnVolumeChangedListener mVolumeChangedListener;
     private Context ctx;
 
     /**
@@ -35,7 +46,7 @@ public class OBSSourceButtonsAdapter
      *  @param context System context (Activity)
      * @param data Values to be shown in the RecyclerView
      */
-    public OBSSourceButtonsAdapter(Context context, ObsScene data) {
+    public OBSAudioSourcesSlidersAdapter(Context context, ArrayList<OBSAudioSource> data) {
         this.mInflater = LayoutInflater.from(context);
         this.mData = data;
         this.ctx = context;
@@ -60,9 +71,9 @@ public class OBSSourceButtonsAdapter
     @NonNull
     @NotNull
     @Override
-    public OBSSourceButtonsAdapter.ViewHolder onCreateViewHolder(@NonNull @NotNull ViewGroup parent, int viewType) {
-        View view = mInflater.inflate(R.layout.buttongrid, parent, false);
-        return new ViewHolder(view);
+    public OBSAudioSourcesSlidersAdapter.ViewHolder onCreateViewHolder(@NonNull @NotNull ViewGroup parent, int viewType) {
+        View view = mInflater.inflate(R.layout.volume_slider, parent, false);
+        return new OBSAudioSourcesSlidersAdapter.ViewHolder(view);
     }
 
     /**
@@ -76,25 +87,16 @@ public class OBSSourceButtonsAdapter
      *                 ViewHolder's views with. (That might me database IDs or just array indices.)
      */
     @Override
-    public void onBindViewHolder(@NonNull @NotNull OBSSourceButtonsAdapter.ViewHolder holder, int position) {
-        holder.myTextView.setText(mData.sceneItems.get(position).name);
-        holder.myTextView.setTag(mData.name); // Remember the scene in the tag property
-        if (mData.sceneItems.get(position).render) {
-            holder.myTextView.setBackgroundResource(R.drawable.active_source);
-        } else {
-            holder.myTextView.setBackgroundResource(R.drawable.non_active_source);
-        }
-//        if (mData.scenes.get(position).name.equals(mData.getCurrentPreviewScene())) {
-////            holder.myTextView.setBackgroundColor(Color.rgb(0xaa, 0xaa, 0xff));
-//            holder.myTextView.setBackgroundResource(R.drawable.active_scene);
-//            holder.myTextView.setTextColor(Color.DKGRAY);
-//            holder.myTextView.setOnClickListener(null);
-//        } else {
-////            holder.myTextView.setBackgroundColor(Color.rgb(0x00, 0x00, 0xff));
-//            holder.myTextView.setBackgroundResource(R.drawable.non_active_scene);
-//            holder.myTextView.setTextColor(Color.WHITE);
-//            holder.myTextView.setOnClickListener(holder);
-//        }
+    public void onBindViewHolder(@NonNull @NotNull OBSAudioSourcesSlidersAdapter.ViewHolder holder, int position) {
+        holder.audioSourceName.setText(mData.get(position).name);
+        holder.toggleMuteButton.setText("");
+        holder.toggleMuteButton.setChecked(mData.get(position).isMuted);
+        holder.volumeBar.setMax(1000);
+        holder.volumeBar.setMin(0);
+        holder.volumeBar.setProgress(mData.get(position).volume);
+        holder.volumeBar.setTag(mData.get(position).name);
+        holder.toggleMuteButton.setOnClickListener(holder);
+        holder.volumeBar.setOnSeekBarChangeListener(holder);
     }
 
     /**
@@ -104,46 +106,40 @@ public class OBSSourceButtonsAdapter
      */
     @Override
     public int getItemCount() {
-        return mData.sceneItems.size();
+        return mData.size();
     }
 
     String getItem(int id) {
-        return mData.sceneItems.get(id).name;
+        return mData.get(id).name;
     }
 
-    /**
-     * Here, we populate the class member mClickListener. This property holds an object which
-     * implements the OnItemClickListener. This method is called from the main activity and provides
-     * an argument which object to use as that listener
-     *
-     * @param itemClickListener is set by the calling object to whatever object that shall be the
-     *                          listener.
-     */
-    void setSourceClickListener(OBSSourceButtonsAdapter.OnSourceClickListener sourceClickListener) {
-        this.mClickListener = sourceClickListener;
+    void setVolumeChangedListener(OnVolumeChangedListener volumeChangedListener) {
+        this.mVolumeChangedListener = volumeChangedListener;
+    }
+
+    void setMuteButtonChangedListener(OnMuteButtonChangedListener muteButtonChangedListener) {
+        this.mMuteButtonChangedListener = muteButtonChangedListener;
     }
 
     @Override
-    public void onObsSourcesChanged(ObsScene currentPreviewScene) {
-        //mData = obsScenesList;
+    public void onObsAudioChanged(ArrayList<OBSAudioSource> audioSources) {
         ((MainActivity)ctx).runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                mData = currentPreviewScene;
+                mData = audioSources;
                 notifyDataSetChanged();
             }
         });
-
     }
 
-    /**
-     * Here, we define the OnItemClickListener interface. This interface makes sure, that "everyone"
-     * who "claims to be" an OnItemClickListener, really implements the OnItemClick method.
-     * This is needed by the OnClickListener in the ViewHolder class, as there, the OnItemClick
-     * method is invoked in an object implementing the OnItemClickListener interface.
-     */
-    public interface OnSourceClickListener {
-        void onSourceClick(View view, int position);
+    public interface OnMuteButtonChangedListener {
+        void onMuteButtonChanged(View view, int position);
+    }
+
+    public interface OnVolumeChangedListener {
+        void onVolumeChanged(View view, int volume, boolean fromUser, int position);
+        void onVolumeStartTracking(View view, int position);
+        void onVolumeStopTracking(View view, int position);
     }
 
     /**
@@ -155,9 +151,13 @@ public class OBSSourceButtonsAdapter
      * @see https://stackoverflow.com/questions/21501316/what-is-the-benefit-of-viewholder-pattern-in-android
      *
      */
-    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+    public class ViewHolder extends RecyclerView.ViewHolder
+            implements View.OnClickListener, SeekBar.OnSeekBarChangeListener {
         // Here, we define the Views which are part of one item in a RecyclerView layout
-        TextView myTextView;
+        TextView audioSourceName;
+        ToggleButton toggleMuteButton;
+        SeekBar volumeBar;
+
 
         /**
          * The constructor creates an instance of the class.
@@ -169,34 +169,39 @@ public class OBSSourceButtonsAdapter
          */
         public ViewHolder(@NonNull @NotNull View itemView) {
             super(itemView);
-            myTextView = itemView.findViewById(R.id.info_text);
+            audioSourceName = itemView.findViewById(R.id.audio_source_name);
+            toggleMuteButton = itemView.findViewById(R.id.toggleMuteButton);
+            volumeBar = itemView.findViewById(R.id.volumeBar);
             // The view gets an OnClickListener attached in order to react upon clicks.
             // as the ViewHolder class implements the interface View.OnClickListener, the
             // class itself can be used as the listener (this)
-            itemView.setOnClickListener(this);
+            toggleMuteButton.setOnClickListener(this);
+            volumeBar.setOnSeekBarChangeListener(this);
         }
 
-        /**
-         * This override is called when a View is clicked, as its OnClickListener is set to the
-         * current class, this class implements the View.OnClickListener interface and this
-         * interface guarantees that a method onClick(View view) is provided. This is this very
-         * method...
-         *
-         * In this case, the onClick callback does not really handle the onClick event.
-         * It rather forwards it to another event handler... (Things are getting confusing here...)
-         *
-         * @param view Filled by the framework with the View that has been clicked and whose click
-         *             has caused the event handler to be fired.
-         */
+        @Override
+        public void onProgressChanged(SeekBar seekBar, int volume, boolean fromUser) {
+            int position = getAdapterPosition();
+            if (mVolumeChangedListener != null) mVolumeChangedListener.onVolumeChanged(seekBar, volume, fromUser, getAdapterPosition());
+        }
+
+        @Override
+        public void onStartTrackingTouch(SeekBar seekBar) {
+            if (mVolumeChangedListener != null) mVolumeChangedListener.onVolumeStartTracking(seekBar, getAdapterPosition());
+        }
+
+        @Override
+        public void onStopTrackingTouch(SeekBar seekBar) {
+            if (mVolumeChangedListener != null) mVolumeChangedListener.onVolumeStopTracking(seekBar, getAdapterPosition());
+        }
+
         @Override
         public void onClick(View view) {
-            // if the variable mClickListener really contains a valid OnClickListener,
-            // that OnClickListener is called with the View that was clicked and the position
-            // in the list where the user clicked. (This information is not normally available
-            // in a standard OnClickListener, but added there for conveniently working with the
-            // list.
-            if (mClickListener != null) mClickListener.onSourceClick(view, getAdapterPosition());
+            if (mMuteButtonChangedListener != null) mMuteButtonChangedListener.onMuteButtonChanged(view, getAdapterPosition());
         }
+
     }
+
+
 
 }
