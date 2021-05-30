@@ -23,20 +23,23 @@
             android:singleLine="true"
             android:title="@string/strPassword" />
     </PreferenceCategory>
-    <PreferenceCategory app:title="@string/messages_header">
+    <PreferenceCategory app:title="@string/display_category">
 
         <EditTextPreference
-            app:key="signature"
-            app:title="@string/signature_title"
-            app:useSimpleSummaryProvider="true" />
-
-        <ListPreference
-            app:defaultValue="reply"
-            app:entries="@array/reply_entries"
-            app:entryValues="@array/reply_values"
-            app:key="reply"
-            app:title="@string/reply_title"
-            app:useSimpleSummaryProvider="true" />
+            android:inputType="number|numberDecimal"
+            android:key="key_font_size"
+            android:title="@string/font_size" />
+        <EditTextPreference
+            android:defaultValue="4"
+            android:key="columns"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="@string/num_columns"
+            android:inputType="number" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="wakelock"
+            android:title="@string/display_always_on" />
 
     </PreferenceCategory>
 

@@ -15,7 +15,8 @@
             android:name="de.tomschachtner.obscontrol.SettingsActivity"
             android:label="@string/title_activity_settings"
             android:parentActivityName="de.tomschachtner.obscontrol.MainActivity" />
-        <activity android:name="de.tomschachtner.obscontrol.MainActivity">
+        <activity android:name="de.tomschachtner.obscontrol.MainActivity"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

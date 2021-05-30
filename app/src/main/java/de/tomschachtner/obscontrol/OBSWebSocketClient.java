@@ -2,6 +2,8 @@ package de.tomschachtner.obscontrol;
 
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.Log;
 
 import androidx.appcompat.app.AlertDialog;
@@ -33,7 +35,8 @@ import de.tomschachtner.obscontrol.obsdata.ObsSourceType;
 import de.tomschachtner.obscontrol.obsdata.ObsSourceTypesList;
 import de.tomschachtner.obscontrol.obsdata.ObsTransitionsList;
 
-public class OBSWebSocketClient extends WebSocketClient {
+public class OBSWebSocketClient
+        extends WebSocketClient {
 
     public static final String TAG = "ObsWebSocketClient_TS";
     public MainActivity mainAct;
@@ -1066,6 +1069,7 @@ public class OBSWebSocketClient extends WebSocketClient {
             }
         });
     }
+
 //endregion
 
 //region Listeners (interfaces)

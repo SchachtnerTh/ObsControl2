@@ -1,10 +1,12 @@
 package de.tomschachtner.obscontrol;
 
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.Fragment;
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -102,14 +104,17 @@ public class ScenesFragment
             }
         });
 
-        int numberOfScenesColumns = 4;
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getContext());
+        String strColumns = sp.getString("columns", "4");
+
+        int numberOfScenesColumns = Integer.parseInt(strColumns);
         obsScenesButtons.setLayoutManager(new GridLayoutManager(getContext(), numberOfScenesColumns));
         sceneButtonsAdapter = new OBSSceneButtonsAdapter(getContext(), theActivity.mOBSWebSocketClient.obsScenes);
         sceneButtonsAdapter.setSceneClickListener(this);
         theActivity.mOBSWebSocketClient.setOnObsScenesChangedListener(sceneButtonsAdapter);
         obsScenesButtons.setAdapter(sceneButtonsAdapter);
 
-        int numberOfSourcesColumns = 4;
+        int numberOfSourcesColumns = Integer.parseInt(strColumns);
         obsSourcesButtons.setLayoutManager(new GridLayoutManager(getContext(), numberOfSourcesColumns));
         sourceButtonsAdapter = new OBSSourceButtonsAdapter(getContext(), theActivity.mOBSWebSocketClient.currentPreviewScene);
         sourceButtonsAdapter.setSourceClickListener(this);

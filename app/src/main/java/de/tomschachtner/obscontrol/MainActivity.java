@@ -20,18 +20,21 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewStub;
+import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.google.android.material.tabs.TabLayout;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class MainActivity
-        extends AppCompatActivity
-         {
+        extends AppCompatActivity {
     public Context ctx = this;
+
     public void onConnectErrorFromWebService(String localizedMessage) {
         runOnUiThread(new Runnable() {
             @Override
@@ -49,7 +52,6 @@ public class MainActivity
             }
         });
     }
-
 
 
     enum status {
@@ -113,12 +115,46 @@ public class MainActivity
     HotkeysFragment hotkeysFragment;
 
     View vScenesSources;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        Log.d("TEST", "onStart");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Log.d("TEST", "onStop");
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.d("TEST", "onDestroy");
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull @NotNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("connected", (mOBSWebSocketClient == null) ? false : true);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
         String host = sp.getString("ws_host_value", null);
         String port = sp.getString("ws_port_value", null);
+
+        String strFontSize = sp.getString("key_font_size", "");
+//        String fontsize = sp.getString("key_font_size", "(float) 0.0");
+        if (strFontSize.equals("")) {
+            SharedPreferences.Editor editor = sp.edit();
+            editor.putString("key_font_size", "14.0");
+            editor.commit();
+        }
+
         if (host == null || port == null) {
             Intent i = new Intent(this, SettingsActivity.class);
             startActivity(i);
@@ -128,6 +164,12 @@ public class MainActivity
             //setContentView(R.layout.activity_main);
 
             setContentView(R.layout.activity_root_layout);
+            boolean wakelock = sp.getBoolean("wakelock", false);
+            if (wakelock)
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
             //rootLayout = findViewById(R.id.root_layout);
             scenesFragment = new ScenesFragment();
             transitionsVolumesFragment = new TransitionsVolumesFragment();
@@ -190,23 +232,19 @@ public class MainActivity
             try {
                 webSocketURI = new URI("ws://" + host + ":" + port + "/");
             } catch (URISyntaxException e) {
-                webSocketURI=null;
+                webSocketURI = null;
                 e.printStackTrace();
             }
 
             mOBSWebSocketClient = new OBSWebSocketClient(webSocketURI, this);
+
             //setConnectStatusIndicator(MainActivity.status.CLOSED);
 
-
             verbindenMitWebService();
-
-
-
-
-
         }
 
     }
+
 
     public void verbindenMitWebService() {
         mOBSWebSocketClient.connect();

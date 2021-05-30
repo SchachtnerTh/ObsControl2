@@ -1,12 +1,15 @@
 package de.tomschachtner.obscontrol;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.jetbrains.annotations.NotNull;
@@ -78,6 +81,11 @@ public class OBSSourceButtonsAdapter
     @Override
     public void onBindViewHolder(@NonNull @NotNull OBSSourceButtonsAdapter.ViewHolder holder, int position) {
         holder.myTextView.setText(mData.sceneItems.get(position).name);
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(ctx);
+        String strFontSize = sp.getString("key_font_size", "10.0");
+
+        holder.myTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, Float.parseFloat(strFontSize));
+
         holder.myTextView.setTag(mData.name); // Remember the scene in the tag property
         if (mData.sceneItems.get(position).render) {
             holder.myTextView.setBackgroundResource(R.drawable.active_source);

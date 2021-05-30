@@ -1,9 +1,11 @@
 package de.tomschachtner.obscontrol;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.Fragment;
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -59,8 +61,12 @@ public class TransitionsVolumesFragment
         client.getTransitionsList_req();
         client.getAudioSourcesList_req();
 
-        int numberOfScenesColumns = 4;
-        obsTransitionsButtons.setLayoutManager(new GridLayoutManager(getContext(), numberOfScenesColumns));
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getContext());
+        String strColumns = sp.getString("columns", "4");
+
+        int numberOfTransitionsColumns = Integer.parseInt(strColumns);
+
+        obsTransitionsButtons.setLayoutManager(new GridLayoutManager(getContext(), numberOfTransitionsColumns));
         transitionsButtonsAdapter = new OBSTransitionsButtonsAdapter(getContext(), client.transitionsList);
         transitionsButtonsAdapter.setTransitionsClickListener(this);
         transitionsButtonsAdapter.setTransitionsLongClickListener(this);

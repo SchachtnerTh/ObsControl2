@@ -32,4 +32,8 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="minus_infinity">-&#8734; dB</string>
     <string name="zero_db">0 dB</string>
+    <string name="display_category">Anzeige</string>
+    <string name="font_size">Schriftgröße</string>
+    <string name="num_columns">Anzahl an Schaltflächen nebeneinander</string>
+    <string name="display_always_on">Bildschirm immer an</string>
 </resources>
