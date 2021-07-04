@@ -2,6 +2,8 @@ package de.tomschachtner.obscontrol;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
@@ -20,7 +22,9 @@ import de.tomschachtner.obscontrol.obsdata.ObsScenesList;
 public class OBSHotkeysButtonsAdapter
         extends RecyclerView.Adapter<OBSHotkeysButtonsAdapter.ViewHolder> {
 
-    private ObsScenesList mData;
+    //private ObsScenesList mData;
+    private SQLiteDatabase db;
+    private OBSHotkeysDatabaseHelper dbHelper;
     private LayoutInflater mInflater;
     private OnHotkeyClickListener mClickListener;
     private Context ctx;
@@ -38,10 +42,11 @@ public class OBSHotkeysButtonsAdapter
      *  @param context System context (Activity)
      * @param data Values to be shown in the RecyclerView
      */
-    public OBSHotkeysButtonsAdapter(Context context, ObsScenesList data) {
+    public OBSHotkeysButtonsAdapter(Context context) {
         this.mInflater = LayoutInflater.from(context);
-        this.mData = data;
         this.ctx = context;
+        dbHelper = new OBSHotkeysDatabaseHelper(context);
+        db = dbHelper.getReadableDatabase();
     }
 
     /**
@@ -81,22 +86,22 @@ public class OBSHotkeysButtonsAdapter
     @Override
     public void onBindViewHolder(@NonNull @NotNull OBSHotkeysButtonsAdapter.ViewHolder holder, int position) {
         // TODO: Replace mData with database-backed information on OBS hotkeys
-        holder.myTextView.setText(mData.scenes.get(position).name);
+
+        holder.myTextView.setText(dbHelper.getHotkeyName(db, position));
+        //holder.myTextView.setText(mData.scenes.get(position).name);
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(ctx);
         String strFontSize = sp.getString("key_font_size", "10.0");
 
         holder.myTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, Float.parseFloat(strFontSize));
-        if (mData.scenes.get(position).name.equals(mData.getCurrentPreviewScene())) {
-//            holder.myTextView.setBackgroundColor(Color.rgb(0xaa, 0xaa, 0xff));
-            holder.myTextView.setBackgroundResource(R.drawable.active_scene);
-            holder.myTextView.setTextColor(Color.DKGRAY);
-            holder.myTextView.setOnClickListener(null);
-        } else {
-//            holder.myTextView.setBackgroundColor(Color.rgb(0x00, 0x00, 0xff));
-            holder.myTextView.setBackgroundResource(R.drawable.non_active_scene);
-            holder.myTextView.setTextColor(Color.WHITE);
-            holder.myTextView.setOnClickListener(holder);
-        }
+//        if (mData.scenes.get(position).name.equals(mData.getCurrentPreviewScene())) {
+//            holder.myTextView.setBackgroundResource(R.drawable.active_scene);
+//            holder.myTextView.setTextColor(Color.DKGRAY);
+//            holder.myTextView.setOnClickListener(null);
+//        } else {
+//            holder.myTextView.setBackgroundResource(R.drawable.non_active_scene);
+//            holder.myTextView.setTextColor(Color.WHITE);
+//            holder.myTextView.setOnClickListener(holder);
+//        }
     }
 
     /**
@@ -106,11 +111,15 @@ public class OBSHotkeysButtonsAdapter
      */
     @Override
     public int getItemCount() {
-        return mData.scenes.size();
+        return (int)dbHelper.getItemsCount(db);
     }
 
-    String getItem(int id) {
-        return mData.scenes.get(id).name;
+    String getItemName(int id) {
+        return dbHelper.getHotkeyName(db, id);
+    }
+
+    String getItemHotkey(int id) {
+        return dbHelper.getHotkeyKey(db, id);
     }
 
     /**

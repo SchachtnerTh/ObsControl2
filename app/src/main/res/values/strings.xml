@@ -36,4 +36,5 @@
     <string name="font_size">Schriftgröße</string>
     <string name="num_columns">Anzahl an Schaltflächen nebeneinander</string>
     <string name="display_always_on">Bildschirm immer an</string>
+    <string name="version">Version...</string>
 </resources>

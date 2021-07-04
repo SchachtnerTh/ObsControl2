@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
+<menu xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
         android:id="@+id/menuSettings"
@@ -8,4 +9,7 @@
     <item
         android:id="@+id/logon"
         android:title="@string/strLogon" />
+    <item
+        android:id="@+id/version"
+        android:title="@string/version" />
 </menu>

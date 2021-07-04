@@ -833,6 +833,24 @@ public class OBSWebSocketClient
         }
     }
 
+    public void sendHotkey(String hotkeyName, int shift, int alt, int ctrl, int cmd) {
+        JSONObject jso = new JSONObject();
+        JSONObject modifiers = new JSONObject();
+        try {
+            jso.put("request-type", "TriggerHotkeyBySequence");
+            jso.put("message-id", "hotkey_by_sequence_SCT");
+            jso.put("keyId", hotkeyName);
+            modifiers.put("shift", shift);
+            modifiers.put("alt", alt);
+            modifiers.put("control", ctrl);
+            modifiers.put("command", cmd);
+            jso.put("keyModifiers", modifiers);
+            send(jso.toString());
+        } catch (JSONException jsonException) {
+            jsonException.printStackTrace();
+        }
+    }
+
     /**
      * Callback for string messages received from the remote host
      *
@@ -939,6 +957,10 @@ public class OBSWebSocketClient
                         break;
                     case "SetVolume_SCT":
                         Log.d("TEST", jso.toString());
+                        break;
+                    case "hotkey_by_sequence_SCT":
+                        Log.d("TEST", jso.toString());
+                        Log.d("TEST", "Hotkey sent!");
                         break;
                     default:
                         ToastInMainAct("Unbekannte Antwort vom WebService!");

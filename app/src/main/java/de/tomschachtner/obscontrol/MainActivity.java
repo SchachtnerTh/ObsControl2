@@ -100,6 +100,17 @@ public class MainActivity
             case R.id.logon:
                 verbindenMitWebService();
                 break;
+            case R.id.version:
+                AlertDialog.Builder dlgVersion = new AlertDialog.Builder(this);
+                dlgVersion.setMessage("Versionsnummer: " + BuildConfig.VERSION_NAME + "\n" +
+                        "Buildnummer: " + BuildConfig.VERSION_CODE + "\n" +
+                        "Build type: " + BuildConfig.BUILD_TYPE + "\n" +
+                        "Application ID: " + BuildConfig.APPLICATION_ID);
+                dlgVersion.setTitle("Versionsinformationen");
+                dlgVersion.setPositiveButton("OK", null);
+                dlgVersion.setCancelable(true);
+                dlgVersion.create().show();
+                break;
             default:
                 return super.onOptionsItemSelected(item);
         }
