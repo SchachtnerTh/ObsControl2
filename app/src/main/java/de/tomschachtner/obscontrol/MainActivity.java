@@ -111,6 +111,10 @@ public class MainActivity
                 dlgVersion.setCancelable(true);
                 dlgVersion.create().show();
                 break;
+            case R.id.manageHotkeys:
+                Intent i2 = new Intent(this, HotkeyConfigActivity.class);
+                startActivity(i2);
+                break;
             default:
                 return super.onOptionsItemSelected(item);
         }

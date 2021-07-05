@@ -11,11 +11,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ObsControl2">
+        <activity android:name=".HotkeyConfigActivity"></activity>
         <activity
-            android:name="de.tomschachtner.obscontrol.SettingsActivity"
+            android:name=".SettingsActivity"
             android:label="@string/title_activity_settings"
-            android:parentActivityName="de.tomschachtner.obscontrol.MainActivity" />
-        <activity android:name="de.tomschachtner.obscontrol.MainActivity"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".MainActivity"
             android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

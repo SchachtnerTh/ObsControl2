@@ -19,6 +19,11 @@ public final class OBSHotkeysDBContract {
         public static final String COLUMN_NAME_NAME = "name";
     }
 
+    public static class OBSHotkeyList implements BaseColumns {
+        public static final String TABLE_NAME = "hotkey_list";
+        public static final String COLUMN_NAME_HOTKEY = "hotkey";
+    }
+
     public static final String SQL_CREATE_HOTKEY_TABLE =
             "CREATE TABLE " + OBSHotkeyTbl.TABLE_NAME + " (" +
                     OBSHotkeyTbl._ID + " INTEGER PRIMARY KEY," +
@@ -30,6 +35,14 @@ public final class OBSHotkeysDBContract {
                     OBSHotkeyTbl.COLUMN_NAME_MOD_CMD + " INTEGER," +
                     OBSHotkeyTbl.COLUMN_NAME_NAME + " TEXT)";
 
+    public static final String SQL_CREATE_HOTKEYLIST_TABLE =
+            "CREATE TABLE " + OBSHotkeyList.TABLE_NAME + " (" +
+                    OBSHotkeyList._ID + " INTEGER PRIMARY KEY," +
+                    OBSHotkeyList.COLUMN_NAME_HOTKEY + " Text)";
+
     public static final String SQL_DELETE_HOTKEY_TABLE =
             "DROP TABLE IF EXISTS " + OBSHotkeyTbl.TABLE_NAME;
+
+    public static final String SQL_DELETE_HOTKEYLIST_TABLE =
+            "DROP TABLE IF EXISTS " + OBSHotkeyList.TABLE_NAME;
 }

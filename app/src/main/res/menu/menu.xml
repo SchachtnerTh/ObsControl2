@@ -7,6 +7,9 @@
         android:icon="@android:drawable/ic_menu_preferences"
         android:title="@string/MenuSettings" />
     <item
+        android:id="@+id/manageHotkeys"
+        android:title="@string/manageHotkeys" />
+    <item
         android:id="@+id/logon"
         android:title="@string/strLogon" />
     <item
