@@ -1,6 +1,7 @@
 package de.tomschachtner.obscontrol;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
@@ -112,13 +113,47 @@ public class MainActivity
                 dlgVersion.create().show();
                 break;
             case R.id.manageHotkeys:
-                Intent i2 = new Intent(this, HotkeyConfigActivity.class);
-                startActivity(i2);
+//                Intent i2 = new Intent(this, HotkeyConfigActivity.class);
+//                startActivity(i2);
+                Intent i3 = new Intent(this, AddNewHotkeyActivity.class);
+                startActivityForResult(i3, 1);
+
                 break;
             default:
                 return super.onOptionsItemSelected(item);
         }
         return true;
+    }
+
+    /**
+     * Dispatch incoming result to the correct fragment.
+     *
+     * @param requestCode
+     * @param resultCode
+     * @param data
+     */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable @org.jetbrains.annotations.Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            case 1:
+                if (resultCode == 1) {
+                    hotkeysFragment.hotkeysButtonsAdapter.notifyDataSetChanged();
+                }
+                if (resultCode == 0) {
+                    AlertDialog dlg = new AlertDialog.Builder(this).create();
+                    dlg.setTitle("Hotkey bereits vorhanden");
+                    dlg.setMessage("Der angegebene Hotkey ist bereits registriert. Registrieren Sie einen anderen Hotkey oder löschen Sie den bereits registrierten.");
+                    dlg.setButton(AlertDialog.BUTTON_NEUTRAL, "OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            dialogInterface.dismiss();
+                        }
+                    });
+                    dlg.show();
+                }
+                break;
+        }
     }
 
     private ViewStub clientView;

@@ -3,9 +3,13 @@ package de.tomschachtner.obscontrol;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.CursorIndexOutOfBoundsException;
 import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.text.Editable;
+
+import androidx.core.content.ContextCompat;
 
 import static de.tomschachtner.obscontrol.OBSHotkeysDBContract.*;
 
@@ -661,6 +665,56 @@ public class OBSHotkeysDatabaseHelper
 
     }
 
+    public int getHotkeyModifier(SQLiteDatabase db, int modifier, int orderPosition) {
+        String[] projection = {
+                OBSHotkeyTbl._ID,
+                OBSHotkeyTbl.COLUMN_NAME_NAME,
+                OBSHotkeyTbl.COLUMN_NAME_HOTKEY,
+                OBSHotkeyTbl.COLUMN_NAME_MOD_SHIFT,
+                OBSHotkeyTbl.COLUMN_NAME_MOD_ALT,
+                OBSHotkeyTbl.COLUMN_NAME_MOD_CTRL,
+                OBSHotkeyTbl.COLUMN_NAME_MOD_CMD,
+                OBSHotkeyTbl.COLUMN_NAME_ORDER
+        };
+        String selection = OBSHotkeysDBContract.OBSHotkeyTbl.COLUMN_NAME_ORDER + " = ?";
+        String[] selectionArgs = { String.valueOf(orderPosition) };
+        String sortOrder = OBSHotkeysDBContract.OBSHotkeyTbl.COLUMN_NAME_ORDER + " ASC";
+
+        Cursor cursor = db.query(
+                OBSHotkeysDBContract.OBSHotkeyTbl.TABLE_NAME,
+                projection,
+                selection,
+                selectionArgs,
+                null,
+                null,
+                sortOrder
+        );
+
+        int ret=0;
+
+        if (cursor.getCount()>0) {
+            cursor.moveToFirst();
+            switch (modifier) {
+                case 1: // shift
+                    ret = cursor.getInt(cursor.getColumnIndex(OBSHotkeyTbl.COLUMN_NAME_MOD_SHIFT));
+                    break;
+                case 2: // alt
+                    ret = cursor.getInt(cursor.getColumnIndex(OBSHotkeyTbl.COLUMN_NAME_MOD_ALT));
+                    break;
+                case 3: // ctrl
+                    ret = cursor.getInt(cursor.getColumnIndex(OBSHotkeyTbl.COLUMN_NAME_MOD_CTRL));
+                    break;
+                case 4: // cmd
+                    ret = cursor.getInt(cursor.getColumnIndex(OBSHotkeyTbl.COLUMN_NAME_MOD_CMD));
+                    break;
+            }
+            return ret;
+        } else
+        {
+            return 0;
+        }
+    }
+
     public String getHotkeyName(SQLiteDatabase db, int orderPosition) {
         String[] projection = {
                 OBSHotkeyTbl._ID,
@@ -686,12 +740,44 @@ public class OBSHotkeysDatabaseHelper
                 sortOrder
         );
 
+        if (cursor.getCount()>0) {
         cursor.moveToFirst();
         return cursor.getString(cursor.getColumnIndex(OBSHotkeyTbl.COLUMN_NAME_NAME));
+        } else
+        {
+            return null;
+        }
     }
 
     public long getItemsCount(SQLiteDatabase db) {
         return DatabaseUtils.queryNumEntries(db, OBSHotkeyTbl.TABLE_NAME);
+    }
+
+    public int getMaxItemNumber(SQLiteDatabase db) {
+        Cursor c = db.query(OBSHotkeyTbl.TABLE_NAME, new String[]{"COUNT(" + OBSHotkeyTbl.COLUMN_NAME_ORDER + ") AS Anzahl"}, null,null,null,null,null);
+        int numItems, newId;
+        try {
+            if (c.getCount() > 0) {
+                c.moveToFirst();
+                numItems = c.getInt(c.getColumnIndex("Anzahl"));
+            } else {
+                numItems = 0;
+            }
+        }
+        catch (CursorIndexOutOfBoundsException cioobe) {
+            newId = -1;
+            return newId;
+        }
+        if (numItems > 0) {
+            c = db.query(OBSHotkeyTbl.TABLE_NAME, new String[] { "MAX(" + OBSHotkeyTbl.COLUMN_NAME_ORDER + ") AS MaxID"}, null, null, null, null,null);
+            c.moveToFirst();
+            int maxId = c.getInt(0);
+            newId = maxId + 1;
+        }
+        else {
+            newId = 0;
+        }
+        return newId;
     }
 
     public String getHotkeyKey(SQLiteDatabase db, int id) {
@@ -730,5 +816,131 @@ public class OBSHotkeysDatabaseHelper
             cv.put(OBSHotkeyList.COLUMN_NAME_HOTKEY, key);
             db.insert(OBSHotkeyList.TABLE_NAME, null, cv);
         }
+    }
+
+    public Cursor getAvailableHotkeys(SQLiteDatabase db) {
+//        return db.rawQuery("SELECT " +
+//                OBSHotkeyList._ID +
+//                ", " +
+//                OBSHotkeyList.COLUMN_NAME_HOTKEY +
+//                " FROM " +
+//                OBSHotkeyList.TABLE_NAME +
+//                " WHERE " +
+//                OBSHotkeyList.COLUMN_NAME_HOTKEY +
+//                " NOT IN (SELECT " +
+//                OBSHotkeyTbl.COLUMN_NAME_HOTKEY +
+//                " FROM " +
+//                OBSHotkeyTbl.TABLE_NAME + ")", null);
+        String[] projection = new String[] {
+                OBSHotkeyTbl._ID,
+                OBSHotkeyList.COLUMN_NAME_HOTKEY
+        };
+        return db.query(
+                OBSHotkeyList.TABLE_NAME,
+                projection,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
+    public boolean addNewHotkey(SQLiteDatabase db,
+            String hotkey,
+            String name,
+            int reihenfolge,
+            boolean bShift,
+            boolean bAlt,
+            boolean bCtrl,
+            boolean bCmd) {
+        // Erst prüfen, ob es diesen Hotkey vielleicht schon gibt...
+        Cursor c = db.query(
+                OBSHotkeyTbl.TABLE_NAME,
+                new String[] { "COUNT (" + OBSHotkeyTbl._ID + ")" },
+                OBSHotkeyTbl.COLUMN_NAME_HOTKEY +
+                        " = ? AND " + OBSHotkeyTbl.COLUMN_NAME_MOD_SHIFT +
+                        " = ? AND " + OBSHotkeyTbl.COLUMN_NAME_MOD_ALT +
+                        " = ? AND " + OBSHotkeyTbl.COLUMN_NAME_MOD_CTRL +
+                        " = ? AND " + OBSHotkeyTbl.COLUMN_NAME_MOD_CMD +
+                        " = ?",
+                new String[] {
+                        hotkey,
+                        String.valueOf(bShift?1:0),
+                        String.valueOf(bAlt?1:0),
+                        String.valueOf(bCtrl?1:0),
+                        String.valueOf(bCmd?1:0)
+                },
+                null,
+                null,
+                null
+        );
+        c.moveToFirst();
+        int found_id = c.getInt(0);
+        if (found_id == 0) {
+            ContentValues cv = new ContentValues();
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_NAME, name);
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_HOTKEY, hotkey);
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_ORDER, reihenfolge);
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_MOD_SHIFT, bShift);
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_MOD_ALT, bAlt);
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_MOD_CTRL, bCtrl);
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_MOD_CMD, bCmd);
+            db.insert(
+                    OBSHotkeyTbl.TABLE_NAME,
+                    null,
+                    cv
+            );
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public void moveHotkeyPosition(SQLiteDatabase db, int fromPosition, int toPosition) {
+        if (fromPosition > toPosition) {
+            int id_from;
+            Cursor c = db.query(
+                    OBSHotkeyTbl.TABLE_NAME,
+                    new String[]{OBSHotkeyTbl._ID},
+                    OBSHotkeyTbl.COLUMN_NAME_ORDER + " = ?",
+                    new String[]{String.valueOf(fromPosition)},
+                    null,
+                    null,
+                    null);
+            c.moveToFirst();
+            id_from = c.getInt(0);
+            db.execSQL("UPDATE " + OBSHotkeyTbl.TABLE_NAME + " SET " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " = " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " + 1 WHERE " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " < " + String.valueOf(fromPosition) + " AND " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " >= " + String.valueOf(toPosition));
+            ContentValues cv = new ContentValues();
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_ORDER, toPosition);
+            db.update(OBSHotkeyTbl.TABLE_NAME, cv,OBSHotkeyTbl._ID + " = ?",new String[] { String.valueOf(id_from) });
+        }
+        if (fromPosition < toPosition) {
+            int id_from;
+            Cursor c = db.query(
+                    OBSHotkeyTbl.TABLE_NAME,
+                    new String[]{OBSHotkeyTbl._ID},
+                    OBSHotkeyTbl.COLUMN_NAME_ORDER + " = ?",
+                    new String[]{String.valueOf(fromPosition)},
+                    null,
+                    null,
+                    null);
+            c.moveToFirst();
+            id_from = c.getInt(0);
+            db.execSQL("UPDATE " + OBSHotkeyTbl.TABLE_NAME + " SET " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " = " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " - 1 WHERE " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " > " + String.valueOf(fromPosition) + " AND " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " < " + String.valueOf(toPosition));
+            ContentValues cv = new ContentValues();
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_ORDER, toPosition - 1);
+            db.update(OBSHotkeyTbl.TABLE_NAME, cv,OBSHotkeyTbl._ID + " = ?",new String[] { String.valueOf(id_from) });
+
+        }
+    }
+
+    public void removeHotkey(SQLiteDatabase db, int position) {
+        db.delete(
+                OBSHotkeyTbl.TABLE_NAME,
+                OBSHotkeyTbl.COLUMN_NAME_ORDER + " = ?",
+                new String[] { String.valueOf(position) }
+        );
+        db.execSQL("UPDATE " + OBSHotkeyTbl.TABLE_NAME + " SET " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " = " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " - 1 WHERE " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " > " + String.valueOf(position));
     }
 }

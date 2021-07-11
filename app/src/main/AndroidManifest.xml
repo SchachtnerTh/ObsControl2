@@ -11,7 +11,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ObsControl2">
-        <activity android:name=".HotkeyConfigActivity"></activity>
+        <activity android:name=".AddNewHotkeyActivity"></activity>
+        <activity android:name=".HotkeyConfigActivity" />
         <activity
             android:name=".SettingsActivity"
             android:label="@string/title_activity_settings"

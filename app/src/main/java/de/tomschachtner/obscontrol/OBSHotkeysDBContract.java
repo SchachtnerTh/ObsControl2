@@ -27,17 +27,17 @@ public final class OBSHotkeysDBContract {
     public static final String SQL_CREATE_HOTKEY_TABLE =
             "CREATE TABLE " + OBSHotkeyTbl.TABLE_NAME + " (" +
                     OBSHotkeyTbl._ID + " INTEGER PRIMARY KEY," +
-                    OBSHotkeyTbl.COLUMN_NAME_ORDER + " INTEGER," +
-                    OBSHotkeyTbl.COLUMN_NAME_HOTKEY + " TEXT," +
-                    OBSHotkeyTbl.COLUMN_NAME_MOD_SHIFT + " INTEGER," +
-                    OBSHotkeyTbl.COLUMN_NAME_MOD_ALT + " INTEGER," +
-                    OBSHotkeyTbl.COLUMN_NAME_MOD_CTRL + " INTEGER," +
-                    OBSHotkeyTbl.COLUMN_NAME_MOD_CMD + " INTEGER," +
+                    OBSHotkeyTbl.COLUMN_NAME_ORDER + " INTEGER, " +
+                    OBSHotkeyTbl.COLUMN_NAME_HOTKEY + " TEXT, " +
+                    OBSHotkeyTbl.COLUMN_NAME_MOD_SHIFT + " INTEGER, " +
+                    OBSHotkeyTbl.COLUMN_NAME_MOD_ALT + " INTEGER, " +
+                    OBSHotkeyTbl.COLUMN_NAME_MOD_CTRL + " INTEGER, " +
+                    OBSHotkeyTbl.COLUMN_NAME_MOD_CMD + " INTEGER, " +
                     OBSHotkeyTbl.COLUMN_NAME_NAME + " TEXT)";
 
     public static final String SQL_CREATE_HOTKEYLIST_TABLE =
             "CREATE TABLE " + OBSHotkeyList.TABLE_NAME + " (" +
-                    OBSHotkeyList._ID + " INTEGER PRIMARY KEY," +
+                    OBSHotkeyList._ID + " INTEGER PRIMARY KEY, " +
                     OBSHotkeyList.COLUMN_NAME_HOTKEY + " Text)";
 
     public static final String SQL_DELETE_HOTKEY_TABLE =

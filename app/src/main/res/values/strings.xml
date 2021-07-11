@@ -47,4 +47,11 @@
 
     <string name="hello_first_fragment">Hello first fragment</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+    <string name="title_activity_add_new_hotkey">AddNewHotkeyActivity</string>
+    <string name="shift_text">Shift</string>
+    <string name="alt_text">Alt</string>
+    <string name="ctrl_text">Ctrl</string>
+    <string name="cmd_text">Cmd</string>
+    <string name="btn_add">Hinzufügen</string>
+    <string name="btn_cancel">Abbrechen</string>
 </resources>

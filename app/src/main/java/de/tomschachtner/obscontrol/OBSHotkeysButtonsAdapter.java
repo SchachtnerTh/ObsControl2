@@ -6,21 +6,26 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.util.TypedValue;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.preference.PreferenceManager;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.jetbrains.annotations.NotNull;
 
 import de.tomschachtner.obscontrol.obsdata.ObsScenesList;
+import de.tomschachtner.obscontrol.util.HotkeyItemTouchHelper;
+import de.tomschachtner.obscontrol.util.ItemTouchHelperAdapter;
 
 public class OBSHotkeysButtonsAdapter
-        extends RecyclerView.Adapter<OBSHotkeysButtonsAdapter.ViewHolder> {
+        extends RecyclerView.Adapter<OBSHotkeysButtonsAdapter.ViewHolder> implements ItemTouchHelperAdapter {
 
     //private ObsScenesList mData;
     private SQLiteDatabase db;
@@ -28,6 +33,8 @@ public class OBSHotkeysButtonsAdapter
     private LayoutInflater mInflater;
     private OnHotkeyClickListener mClickListener;
     private Context ctx;
+    //private HotkeyItemTouchHelper hotkeyItemTouchHelper;
+    private ItemTouchHelper itemTouchHelper;
 
     /**
      * The constructor creates the adapter object.
@@ -46,7 +53,7 @@ public class OBSHotkeysButtonsAdapter
         this.mInflater = LayoutInflater.from(context);
         this.ctx = context;
         dbHelper = new OBSHotkeysDatabaseHelper(context);
-        db = dbHelper.getReadableDatabase();
+        db = dbHelper.getWritableDatabase();
     }
 
     /**
@@ -93,6 +100,8 @@ public class OBSHotkeysButtonsAdapter
         String strFontSize = sp.getString("key_font_size", "10.0");
 
         holder.myTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, Float.parseFloat(strFontSize));
+        holder.myTextView.setBackgroundResource(R.drawable.hotkey_button);
+        //holder.myTextView.setBackgroundColor(R.drawable.hotkey_button);
 //        if (mData.scenes.get(position).name.equals(mData.getCurrentPreviewScene())) {
 //            holder.myTextView.setBackgroundResource(R.drawable.active_scene);
 //            holder.myTextView.setTextColor(Color.DKGRAY);
@@ -134,6 +143,22 @@ public class OBSHotkeysButtonsAdapter
         this.mClickListener = hotkeyClickListener;
     }
 
+    @Override
+    public void onItemMove(int fromPosition, int toPosition) {
+        dbHelper.moveHotkeyPosition(db, fromPosition, toPosition);
+        notifyItemMoved(fromPosition, toPosition);
+    }
+
+    @Override
+    public void onItemSwiped(int position) {
+        dbHelper.removeHotkey(db, position);
+        notifyItemRemoved(position);
+    }
+
+    public void setTouchHelper(ItemTouchHelper  itemTouchHelper) {
+        this.itemTouchHelper = itemTouchHelper;
+    }
+
     /**
      * Here, we define the OnSceneClickListener interface. This interface makes sure, that "everyone"
      * who "claims to be" an OnSceneClickListener, really implements the onSceneClick method.
@@ -141,7 +166,7 @@ public class OBSHotkeysButtonsAdapter
      * method is invoked in an object implementing the OnSceneClickListener interface.
      */
     public interface OnHotkeyClickListener {
-        void onHotkeyClick(View view, int position);
+        void onHotkeyClick(int position);
     }
 
     /**
@@ -153,9 +178,12 @@ public class OBSHotkeysButtonsAdapter
      * @see https://stackoverflow.com/questions/21501316/what-is-the-benefit-of-viewholder-pattern-in-android
      *
      */
-    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+    public class ViewHolder extends RecyclerView.ViewHolder implements
+            View.OnTouchListener,
+            GestureDetector.OnGestureListener {
         // Here, we define the Views which are part of one item in a RecyclerView layout
         TextView myTextView;
+        GestureDetector gestureDetector;
 
         /**
          * The constructor creates an instance of the class.
@@ -168,32 +196,49 @@ public class OBSHotkeysButtonsAdapter
         public ViewHolder(@NonNull @NotNull View itemView) {
             super(itemView);
             myTextView = itemView.findViewById(R.id.info_text);
+            gestureDetector = new GestureDetector(itemView.getContext(), this);
             // The view gets an OnClickListener attached in order to react upon clicks.
             // as the ViewHolder class implements the interface View.OnClickListener, the
             // class itself can be used as the listener (this)
-            itemView.setOnClickListener(this);
+            // itemView.setOnClickListener(this);
+            itemView.setOnTouchListener(this);
         }
 
-        /**
-         * This override is called when a View is clicked, as its OnClickListener is set to the
-         * current class, this class implements the View.OnClickListener interface and this
-         * interface guarantees that a method onClick(View view) is provided. This is this very
-         * method...
-         *
-         * In this case, the onClick callback does not really handle the onClick event.
-         * It rather forwards it to another event handler... (Things are getting confusing here...)
-         *
-         * @param view Filled by the framework with the View that has been clicked and whose click
-         *             has caused the event handler to be fired.
-         */
         @Override
-        public void onClick(View view) {
-            // if the variable mClickListener really contains a valid OnClickListener,
-            // that OnClickListener is called with the View that was clicked and the position
-            // in the list where the user clicked. (This information is not normally available
-            // in a standard OnClickListener, but added there for conveniently working with the
-            // list.
-            if (mClickListener != null) mClickListener.onHotkeyClick(view, getAdapterPosition());
+        public boolean onDown(MotionEvent motionEvent) {
+            return false;
+        }
+
+        @Override
+        public void onShowPress(MotionEvent motionEvent) {
+
+        }
+
+        @Override
+        public boolean onSingleTapUp(MotionEvent motionEvent) {
+            if (mClickListener != null) mClickListener.onHotkeyClick(getAdapterPosition());
+            return false;
+        }
+
+        @Override
+        public boolean onScroll(MotionEvent motionEvent, MotionEvent motionEvent1, float v, float v1) {
+            return false;
+        }
+
+        @Override
+        public void onLongPress(MotionEvent motionEvent) {
+            itemTouchHelper.startDrag( this);
+        }
+
+        @Override
+        public boolean onFling(MotionEvent motionEvent, MotionEvent motionEvent1, float v, float v1) {
+            return false;
+        }
+
+        @Override
+        public boolean onTouch(View view, MotionEvent motionEvent) {
+            gestureDetector.onTouchEvent(motionEvent);
+            return true;
         }
     }
 
