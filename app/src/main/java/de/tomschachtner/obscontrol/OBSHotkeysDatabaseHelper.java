@@ -927,9 +927,9 @@ public class OBSHotkeysDatabaseHelper
                     null);
             c.moveToFirst();
             id_from = c.getInt(0);
-            db.execSQL("UPDATE " + OBSHotkeyTbl.TABLE_NAME + " SET " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " = " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " - 1 WHERE " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " > " + String.valueOf(fromPosition) + " AND " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " < " + String.valueOf(toPosition));
+            db.execSQL("UPDATE " + OBSHotkeyTbl.TABLE_NAME + " SET " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " = " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " - 1 WHERE " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " > " + String.valueOf(fromPosition) + " AND " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " <= " + String.valueOf(toPosition));
             ContentValues cv = new ContentValues();
-            cv.put(OBSHotkeyTbl.COLUMN_NAME_ORDER, toPosition - 1);
+            cv.put(OBSHotkeyTbl.COLUMN_NAME_ORDER, toPosition);
             db.update(OBSHotkeyTbl.TABLE_NAME, cv,OBSHotkeyTbl._ID + " = ?",new String[] { String.valueOf(id_from) });
 
         }

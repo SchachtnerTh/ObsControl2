@@ -75,6 +75,7 @@ public class HotkeyItemTouchHelper extends ItemTouchHelper.Callback {
 //        viewHolder.itemView.setBackgroundColor(
 //                ContextCompat.getColor(viewHolder.itemView.getContext(), R.drawable.hotkey_button);
 //        );
+        //recyclerView.getAdapter().notifyDataSetChanged();
     }
 
     /**

@@ -147,6 +147,7 @@ public class OBSHotkeysButtonsAdapter
     public void onItemMove(int fromPosition, int toPosition) {
         dbHelper.moveHotkeyPosition(db, fromPosition, toPosition);
         notifyItemMoved(fromPosition, toPosition);
+        //notifyDataSetChanged();
     }
 
     @Override
@@ -237,8 +238,8 @@ public class OBSHotkeysButtonsAdapter
 
         @Override
         public boolean onTouch(View view, MotionEvent motionEvent) {
-            gestureDetector.onTouchEvent(motionEvent);
-            return true;
+           gestureDetector.onTouchEvent(motionEvent);
+           return true;
         }
     }
 
