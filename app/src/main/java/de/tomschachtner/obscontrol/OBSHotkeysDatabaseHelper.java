@@ -943,4 +943,24 @@ public class OBSHotkeysDatabaseHelper
         );
         db.execSQL("UPDATE " + OBSHotkeyTbl.TABLE_NAME + " SET " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " = " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " - 1 WHERE " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " > " + String.valueOf(position));
     }
+
+    public Cursor getDefinedHotkeys(SQLiteDatabase db) {
+        String[] projection = new String[] {
+                OBSHotkeyTbl.COLUMN_NAME_HOTKEY,
+                OBSHotkeyTbl.COLUMN_NAME_NAME,
+                OBSHotkeyTbl.COLUMN_NAME_ORDER,
+                OBSHotkeyTbl.COLUMN_NAME_MOD_SHIFT,
+                OBSHotkeyTbl.COLUMN_NAME_MOD_ALT,
+                OBSHotkeyTbl.COLUMN_NAME_MOD_CTRL,
+                OBSHotkeyTbl.COLUMN_NAME_MOD_CMD
+        };
+        return db.query(
+                OBSHotkeyTbl.TABLE_NAME,
+                projection,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
 }

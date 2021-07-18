@@ -10,10 +10,14 @@ import androidx.fragment.app.FragmentTransaction;
 import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.GridLayoutManager;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -28,13 +32,34 @@ import android.widget.Toast;
 import com.google.android.material.tabs.TabLayout;
 
 import org.jetbrains.annotations.NotNull;
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 public class MainActivity
         extends AppCompatActivity {
     public Context ctx = this;
+
+    public final static int MANAGE_HOTKEYS_INTENT = 1;
+    public final static int SAVE_HOTKEY_TO_XML_INTENT = 2;
+    public final static int LOAD_HOTKEY_FROM_XML_INTENT = 3;
 
     public void onConnectErrorFromWebService(String localizedMessage) {
         runOnUiThread(new Runnable() {
@@ -116,8 +141,17 @@ public class MainActivity
 //                Intent i2 = new Intent(this, HotkeyConfigActivity.class);
 //                startActivity(i2);
                 Intent i3 = new Intent(this, AddNewHotkeyActivity.class);
-                startActivityForResult(i3, 1);
-
+                startActivityForResult(i3, MANAGE_HOTKEYS_INTENT);
+                break;
+            case R.id.exportHotkeys:
+                Intent saveXMLFileIntent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                saveXMLFileIntent.addCategory(Intent.CATEGORY_OPENABLE);
+                saveXMLFileIntent.setType("text/xml");
+                saveXMLFileIntent.putExtra(Intent.EXTRA_TITLE, "hotkeys.xml");
+                startActivityForResult(saveXMLFileIntent, SAVE_HOTKEY_TO_XML_INTENT);
+                break;
+            case R.id.importHotkeys:
+                Toast.makeText(this,"Das funktioniert leider noch nicht!", Toast.LENGTH_SHORT).show();
                 break;
             default:
                 return super.onOptionsItemSelected(item);
@@ -136,7 +170,7 @@ public class MainActivity
     protected void onActivityResult(int requestCode, int resultCode, @Nullable @org.jetbrains.annotations.Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         switch (requestCode) {
-            case 1:
+            case MANAGE_HOTKEYS_INTENT:
                 if (resultCode == 1) {
                     hotkeysFragment.hotkeysButtonsAdapter.notifyDataSetChanged();
                 }
@@ -153,6 +187,57 @@ public class MainActivity
                     dlg.show();
                 }
                 break;
+            case SAVE_HOTKEY_TO_XML_INTENT:
+                if (resultCode == Activity.RESULT_OK) {
+                    Uri uri = data.getData();
+                    Document dom;
+                    String xmlText;
+                    try {
+                        OutputStream output = getContentResolver().openOutputStream(uri);
+                        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                        try {
+                            DocumentBuilder dbld = dbf.newDocumentBuilder();
+                            dom = dbld.newDocument();
+                            Element rootElement = dom.createElement("hotkeys");
+                            OBSHotkeysDatabaseHelper dbHelper = new OBSHotkeysDatabaseHelper(this);
+                            SQLiteDatabase db = dbHelper.getReadableDatabase();
+                            Cursor c = dbHelper.getDefinedHotkeys(db);
+                            while (c.moveToNext()) {
+                                Element e = dom.createElement("hotkey");
+                                e.setAttribute("key", c.getString(c.getColumnIndex(OBSHotkeysDBContract.OBSHotkeyTbl.COLUMN_NAME_HOTKEY)));
+                                e.setAttribute("shift", c.getString(c.getColumnIndex(OBSHotkeysDBContract.OBSHotkeyTbl.COLUMN_NAME_MOD_SHIFT)));
+                                e.setAttribute("alt", c.getString(c.getColumnIndex(OBSHotkeysDBContract.OBSHotkeyTbl.COLUMN_NAME_MOD_ALT)));
+                                e.setAttribute("ctrl", c.getString(c.getColumnIndex(OBSHotkeysDBContract.OBSHotkeyTbl.COLUMN_NAME_MOD_CTRL)));
+                                e.setAttribute("cmd", c.getString(c.getColumnIndex(OBSHotkeysDBContract.OBSHotkeyTbl.COLUMN_NAME_MOD_CMD)));
+                                e.appendChild(dom.createTextNode(c.getString(c.getColumnIndex(OBSHotkeysDBContract.OBSHotkeyTbl.COLUMN_NAME_NAME))));
+                                //e.setNodeValue();
+                                rootElement.appendChild(e);
+                            }
+                            c.close();
+                            dom.appendChild(rootElement);
+                            try {
+                                Transformer tr = TransformerFactory.newInstance().newTransformer();
+                                tr.setOutputProperty(OutputKeys.INDENT, "yes");
+                                tr.setOutputProperty(OutputKeys.METHOD, "xml");
+                                tr.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+                                tr.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+                                xmlText = "";
+                                tr.transform(new DOMSource(dom), new StreamResult(output));
+                                output.flush();
+                                output.close();
+                            } catch (TransformerConfigurationException e) {
+                                e.printStackTrace();
+                            } catch (TransformerException e) {
+                                e.printStackTrace();
+                            }
+                        } catch (ParserConfigurationException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    catch (IOException ioe) {
+                        Toast.makeText(this, "Fehler beim Schreiben der XML-Datei.", Toast.LENGTH_SHORT).show();
+                    }
+                }
         }
     }
 

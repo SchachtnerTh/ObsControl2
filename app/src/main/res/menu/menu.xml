@@ -10,6 +10,12 @@
         android:id="@+id/manageHotkeys"
         android:title="@string/manageHotkeys" />
     <item
+        android:id="@+id/importHotkeys"
+        android:title="@string/txtImportHotkeys" />
+    <item
+        android:id="@+id/exportHotkeys"
+        android:title="@string/txtExportHotkeys" />
+    <item
         android:id="@+id/logon"
         android:title="@string/strLogon" />
     <item

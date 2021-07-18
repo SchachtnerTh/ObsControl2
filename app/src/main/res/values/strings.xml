@@ -54,4 +54,6 @@
     <string name="cmd_text">Cmd</string>
     <string name="btn_add">Hinzufügen</string>
     <string name="btn_cancel">Abbrechen</string>
+    <string name="txtExportHotkeys">Hotkeys exportieren ...</string>
+    <string name="txtImportHotkeys">Hotkeys importieren ...</string>
 </resources>
