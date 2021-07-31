@@ -35,9 +35,14 @@ import org.jetbrains.annotations.NotNull;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -151,7 +156,12 @@ public class MainActivity
                 startActivityForResult(saveXMLFileIntent, SAVE_HOTKEY_TO_XML_INTENT);
                 break;
             case R.id.importHotkeys:
-                Toast.makeText(this,"Das funktioniert leider noch nicht!", Toast.LENGTH_SHORT).show();
+                Intent readXMLFileIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                readXMLFileIntent.addCategory(Intent.CATEGORY_OPENABLE);
+                readXMLFileIntent.setType("text/xml");
+                readXMLFileIntent.putExtra(Intent.EXTRA_TITLE, "hotkeys.xml");
+                startActivityForResult(readXMLFileIntent, LOAD_HOTKEY_FROM_XML_INTENT);
+                //Toast.makeText(this,"Das funktioniert leider noch nicht!", Toast.LENGTH_SHORT).show();
                 break;
             default:
                 return super.onOptionsItemSelected(item);
@@ -238,6 +248,66 @@ public class MainActivity
                         Toast.makeText(this, "Fehler beim Schreiben der XML-Datei.", Toast.LENGTH_SHORT).show();
                     }
                 }
+                break;
+            case LOAD_HOTKEY_FROM_XML_INTENT:
+                if (resultCode == Activity.RESULT_OK) {
+                    Uri uri = data.getData();
+                    Document dom;
+                    String xmlText;
+
+                    try {
+                        InputStream input = getContentResolver().openInputStream(uri);
+                        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                        try {
+                            DocumentBuilder dbld = dbf.newDocumentBuilder();
+                            try {
+                                dom = dbld.parse(input);
+                                Element rootElement = dom.getDocumentElement();
+                                NodeList nodes = rootElement.getElementsByTagName("hotkey");
+                                int hotkeysCount = nodes.getLength();
+                                OBSHotkeysDatabaseHelper dbHelper = new OBSHotkeysDatabaseHelper(this);
+                                SQLiteDatabase db = dbHelper.getReadableDatabase();
+                                if (hotkeysCount > 0) {
+                                    dbHelper.removeAllHotkeys(db);
+                                    for (int i = 0; i < hotkeysCount; i++) {
+                                        Element e = (Element) nodes.item(i);
+                                        String hotkey = e.getAttribute("key");
+                                        Boolean bShift = e.getAttribute("shift").equals("1") ? true : false;
+                                        Boolean bAlt = e.getAttribute("alt").equals("1") ? true : false;
+                                        Boolean bCtrl = e.getAttribute("ctrl").equals("1") ? true : false;
+                                        Boolean bCmd = e.getAttribute("cmd").equals("1") ? true : false;
+                                        String name = e.getFirstChild().getNodeValue();
+                                        dbHelper.addNewHotkey(
+                                                db,
+                                                hotkey,
+                                                name,
+                                                i,
+                                                bShift,
+                                                bAlt,
+                                                bCtrl,
+                                                bCmd
+                                        );
+
+
+                                    }
+                                    hotkeysFragment.hotkeysButtonsAdapter.notifyDataSetChanged();
+                                }
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            } catch (SAXException e) {
+                                e.printStackTrace();
+                            }
+                        } catch (ParserConfigurationException e) {
+                            e.printStackTrace();
+                        }
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+
+                    // delete existing hotkey configuration
+                    // parse xml data
+                    // create new hotkey database entries
+                }
         }
     }
 
@@ -248,6 +318,7 @@ public class MainActivity
     ScenesFragment scenesFragment;
     TransitionsVolumesFragment transitionsVolumesFragment;
     HotkeysFragment hotkeysFragment;
+    PreviewFragment previewFragment;
 
     View vScenesSources;
 
@@ -309,6 +380,7 @@ public class MainActivity
             scenesFragment = new ScenesFragment();
             transitionsVolumesFragment = new TransitionsVolumesFragment();
             hotkeysFragment = new HotkeysFragment();
+            previewFragment = new PreviewFragment();
             FragmentManager fm = getSupportFragmentManager();
             FragmentTransaction ft = fm.beginTransaction();
             ft.replace(R.id.simple_frame_layout, scenesFragment);
@@ -342,6 +414,10 @@ public class MainActivity
                         case 2:
                             Log.d("TEST", "Hotkeys tab.");
                             ft.replace(R.id.simple_frame_layout, hotkeysFragment);
+                            break;
+                        case 3:
+                            Log.d("TEST", "Preview tab.");
+                            ft.replace(R.id.simple_frame_layout, previewFragment);
                             break;
                         default:
                             Log.d("TEST", "no tab.");

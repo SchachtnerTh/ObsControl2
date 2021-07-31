@@ -944,6 +944,14 @@ public class OBSHotkeysDatabaseHelper
         db.execSQL("UPDATE " + OBSHotkeyTbl.TABLE_NAME + " SET " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " = " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " - 1 WHERE " + OBSHotkeyTbl.COLUMN_NAME_ORDER + " > " + String.valueOf(position));
     }
 
+    public void removeAllHotkeys(SQLiteDatabase db) {
+        db.delete(
+                OBSHotkeyTbl.TABLE_NAME,
+                null,
+                null
+        );
+    }
+
     public Cursor getDefinedHotkeys(SQLiteDatabase db) {
         String[] projection = new String[] {
                 OBSHotkeyTbl.COLUMN_NAME_HOTKEY,

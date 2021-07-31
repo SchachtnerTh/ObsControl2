@@ -2,9 +2,11 @@ package de.tomschachtner.obscontrol;
 
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.graphics.BitmapFactory;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
+import android.widget.ImageView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.preference.PreferenceManager;
@@ -962,6 +964,11 @@ public class OBSWebSocketClient
                         Log.d("TEST", jso.toString());
                         Log.d("TEST", "Hotkey sent!");
                         break;
+                    case "TakeSourceScreenshot_SCT":
+                        Log.d("TEST", jso.toString());
+                        updatePreview_resp(jso);
+                        break;
+
                     default:
                         ToastInMainAct("Unbekannte Antwort vom WebService!");
                 }
@@ -1090,6 +1097,40 @@ public class OBSWebSocketClient
                 mainAct.onMessageFromWebService(toastMsg);
             }
         });
+    }
+
+    ImageView previewImage;
+
+    public void updatePreview(ImageView previewImage) {
+        this.previewImage = previewImage;
+        JSONObject jso = new JSONObject();
+        try {
+            Log.e("TEST", "Take Screenshot");
+            jso.put("request-type", "TakeSourceScreenshot");
+            jso.put("embedPictureFormat", "png");
+            jso.put("compressionQuality", "-1");
+            jso.put("message-id", "TakeSourceScreenshot_SCT");
+            send(jso.toString());
+        } catch (JSONException jsonException) {
+            jsonException.printStackTrace();
+        }
+
+    }
+
+    private void updatePreview_resp(JSONObject jso) {
+        try {
+            String imgData = jso.getString("img");
+            imgData = imgData.replace("data:image/png;base64,", "");
+            byte[] imageAsBytes = Base64.getDecoder().decode(imgData.getBytes());
+            mainAct.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    previewImage.setImageBitmap(BitmapFactory.decodeByteArray(imageAsBytes, 0, imageAsBytes.length));
+                }
+            });
+        } catch (JSONException jsonException) {
+            jsonException.printStackTrace();
+        }
     }
 
 //endregion

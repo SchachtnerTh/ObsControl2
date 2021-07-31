@@ -56,4 +56,7 @@
     <string name="btn_cancel">Abbrechen</string>
     <string name="txtExportHotkeys">Hotkeys exportieren ...</string>
     <string name="txtImportHotkeys">Hotkeys importieren ...</string>
+    <string name="tab_name_preview">Vorschau</string>
+    <string name="strUpdateScreenshot">Aktualisieren</string>
+    <string name="strScreenshotContentDescription">Screenshot des aktuell übertragenen Bildes</string>
 </resources>
