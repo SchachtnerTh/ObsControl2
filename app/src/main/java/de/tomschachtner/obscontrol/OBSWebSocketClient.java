@@ -81,6 +81,9 @@ public class OBSWebSocketClient
     public final static String OBS_REQ_SET_CURRENT_PREVIEW_SCENE = "SetCurrentPreviewScene";
     public final static String OBS_REQ_GET_CURRENT_PREVIEW_SCENE = "GetCurrentPreviewScene";
     public final static String OBS_REQ_SET_SCENE_ITEM_ENABLED = "SetSceneItemEnabled";
+    public final static String OBS_REQ_TOGGLE_STREAM = "ToggleStream";
+    public final static String OBS_REQ_TOGGLE_RECORDING = "ToggleRecord";
+    public final static String OBS_REQ_TRIGGER_STUDIO_MODE_TRANSITION = "TriggerStudioModeTransition";
 
     public static final String TAG = "ObsWebSocketClient_TS";
     public MainActivity mainAct;
@@ -641,20 +644,20 @@ public class OBSWebSocketClient
         send(jso.toString());
     }
 
+    UUID triggerStudioModeTransitionUUID = null;
+
     /**
      * Ein Request wird an OBS geschickt, dass die aktuelle Preview-Szene mit dem aktuellen Übergang
      * mit der aktuellen aktiven Szene getauscht werden soll.
      */
     public void doTransitionToProgram() {
         JSONObject jso;
-        try {
-            jso = new JSONObject();
-            jso.put("request-type", "TransitionToProgram");
-            jso.put("message-id", "transProgram_SCT");
-            send(jso.toString());
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        triggerStudioModeTransitionUUID = UUID.randomUUID();
+        jso = CreateBasicRequest(
+                OBS_REQ_TRIGGER_STUDIO_MODE_TRANSITION,
+                triggerStudioModeTransitionUUID.toString()
+        );
+        send(jso.toString());
     }
 
     /**
@@ -711,34 +714,34 @@ public class OBSWebSocketClient
         }
     }
 
+    UUID toggleStreamUUID=null;
+
     /**
      * Ein Request wird an OBS geschickt, um das Streamen ein- oder auszuschalten
      */
     public void toggleStreaming() {
+        toggleStreamUUID = UUID.randomUUID();
         JSONObject jso;
-        try {
-            jso = new JSONObject();
-            jso.put("request-type", "StartStopStreaming");
-            jso.put("message-id", "toggleStreaming_SCT");
-            send(jso.toString());
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        jso = CreateBasicRequest(
+                OBS_REQ_TOGGLE_STREAM,
+                toggleStreamUUID.toString());
+        send(jso.toString());
     }
+
+    UUID toggleRecordUUID=null;
 
     /**
      * Ein Request wird an OBS geschickt, um die Aufnahme ein- oder auszuschalten
      */
     public void toggleRecording() {
+        toggleRecordUUID = UUID.randomUUID();
         JSONObject jso;
-        try {
-            jso = new JSONObject();
-            jso.put("request-type", "StartStopRecording");
-            jso.put("message-id", "toggleRecording_SCT");
-            send(jso.toString());
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        jso = new JSONObject();
+        jso = CreateBasicRequest(
+                OBS_REQ_TOGGLE_RECORDING,
+                toggleRecordUUID.toString()
+        );
+        send(jso.toString());
     }
 
     /**
@@ -1263,7 +1266,7 @@ public class OBSWebSocketClient
     private void ProcessResponse(JSONObject dataObj) {
             JSONObject responseData = null;
             try {
-
+                UUID lastcall;
                 switch (dataObj.getString("requestType")) {
                     case OBS_REQ_GET_SCENE_LIST:
                         responseData = dataObj.getJSONObject("responseData");
@@ -1278,19 +1281,64 @@ public class OBSWebSocketClient
                         updateScenes();
                         break;
                     case OBS_REQ_GET_CURRENT_PREVIEW_SCENE:
-                        UUID lastCall = UUID.fromString(dataObj.getString("requestId"));
+                        lastcall = UUID.fromString(dataObj.getString("requestId"));
                         responseData = dataObj.getJSONObject("responseData");
-                        getPreviewScene_resp(responseData, lastCall);
+                        getPreviewScene_resp(responseData, lastcall);
                         break;
                     case OBS_REQ_SET_SCENE_ITEM_ENABLED:
-                        UUID lastcall = UUID.fromString(dataObj.getString("requestId"));
+                        lastcall = UUID.fromString(dataObj.getString("requestId"));
                         //responseData = dataObj.getJSONObject("responseData");
                         setSceneItemVisible_resp(lastcall);
+                        break;
+                    case OBS_REQ_TOGGLE_RECORDING:
+                        lastcall = UUID.fromString(dataObj.getString("requestId"));
+                        responseData = dataObj.getJSONObject("responseData");
+                        toggleRecording_resp(responseData, lastcall);
+                        break;
+                    case OBS_REQ_TOGGLE_STREAM:
+                        lastcall = UUID.fromString(dataObj.getString("requestId"));
+                        responseData = dataObj.getJSONObject("responseData");
+                        toggleStream_resp(responseData, lastcall);
+                        break;
+                    case OBS_REQ_TRIGGER_STUDIO_MODE_TRANSITION:
+                        //checkInvalidate();
+                        updateScenes();
+                        //invalidateAdapters();
+                        //invalidateControls();
+                        break;
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
 
+    }
+
+    private void doTransitionToProgram_resp(JSONObject responseData, UUID lastcall) {
+        Log.i(TAG, responseData.toString());
+    }
+
+    private void toggleStream_resp(JSONObject responseData, UUID lastcall) {
+        if (lastcall.equals(toggleStreamUUID)) {
+            toggleStreamUUID = null;
+            try {
+                isStreaming = responseData.getBoolean("outputActive");
+                invalidateAdapters();
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private void toggleRecording_resp(JSONObject responseData, UUID lastcall) {
+        if (lastcall.equals(toggleRecordUUID)) {
+            toggleRecordUUID = null;
+            try {
+                isRecording = responseData.getBoolean("outputActive");
+                invalidateAdapters();
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     /*private void processResponse(JSONObject dataObj) {
