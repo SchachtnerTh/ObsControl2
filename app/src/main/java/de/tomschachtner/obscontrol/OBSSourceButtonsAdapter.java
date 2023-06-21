@@ -80,14 +80,14 @@ public class OBSSourceButtonsAdapter
      */
     @Override
     public void onBindViewHolder(@NonNull @NotNull OBSSourceButtonsAdapter.ViewHolder holder, int position) {
-        holder.myTextView.setText(mData.sceneItems.get(position).name);
+        holder.myTextView.setText(mData.sceneItems.get(position).sourceName);
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(ctx);
         String strFontSize = sp.getString("key_font_size", "10.0");
 
         holder.myTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, Float.parseFloat(strFontSize));
 
         holder.myTextView.setTag(mData.name); // Remember the scene in the tag property
-        if (mData.sceneItems.get(position).render) {
+        if (mData.sceneItems.get(position).sceneItemEnabled) {
             holder.myTextView.setBackgroundResource(R.drawable.active_source);
         } else {
             holder.myTextView.setBackgroundResource(R.drawable.non_active_source);
@@ -116,8 +116,10 @@ public class OBSSourceButtonsAdapter
     }
 
     String getItem(int id) {
-        return mData.sceneItems.get(id).name;
+        return mData.sceneItems.get(id).sourceName;
     }
+
+    int getSceneItemId(int position) { return mData.sceneItems.get(position).sceneItemId; }
 
     /**
      * Here, we populate the class member mClickListener. This property holds an object which

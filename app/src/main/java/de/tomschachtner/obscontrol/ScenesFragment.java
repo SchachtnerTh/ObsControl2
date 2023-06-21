@@ -1,5 +1,6 @@
 package de.tomschachtner.obscontrol;
 
+import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -15,7 +16,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
@@ -61,6 +61,15 @@ public class ScenesFragment
 
     }
 
+    private void waitScenesValid()
+    {
+        //AlertDialog.Builder alertDialog = new AlertDialog.Builder(theActivity).setMessage("Bitte warten");
+        //AlertDialog alert = alertDialog.create();
+        //alert.show();
+        //while (!theActivity.mOBSWebSocketClient.scenesValid);
+        //alert.hide();
+    }
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -84,6 +93,7 @@ public class ScenesFragment
         transition.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                //waitScenesValid();
                 theActivity.mOBSWebSocketClient.doTransitionToProgram();
                 //theActivity.mOBSWebSocketClient.getAudioSourcesList();
             }
@@ -92,6 +102,7 @@ public class ScenesFragment
         streamButton.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
+                //waitScenesValid();
                 theActivity.mOBSWebSocketClient.toggleStreaming();
                 return true;
             }
@@ -100,6 +111,7 @@ public class ScenesFragment
         recordButton.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
+                //waitScenesValid();
                 theActivity.mOBSWebSocketClient.toggleRecording();
                 return true;
             }
@@ -137,14 +149,17 @@ public class ScenesFragment
 
     @Override
     public void onSceneClick(View view, int position) {
+        //waitScenesValid();
         Log.i("TEST", "You clicked number " + sceneButtonsAdapter.getItem(position) + ", which is at cell position " + position);
         theActivity.mOBSWebSocketClient.switchPreviewScene(sceneButtonsAdapter.getItem(position));
     }
 
     @Override
     public void onSourceClick(View view, int position) {
+        //waitScenesValid();
         Log.i("TEST", "You clicked number " + sourceButtonsAdapter.getItem(position) + ", which is at cell position " + position);
-        theActivity.mOBSWebSocketClient.toggleSceneItemVisibility(sourceButtonsAdapter.getItem(position));
+
+        theActivity.mOBSWebSocketClient.toggleSceneItemVisibility(sourceButtonsAdapter.getSceneItemId(position));
     }
 
     public void setConnectStatusIndicator(MainActivity.status statusIndicator) {

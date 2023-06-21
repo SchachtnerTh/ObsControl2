@@ -25,70 +25,49 @@ public class ObsSceneItem {
      * @param y (unknown)
      */
     public ObsSceneItem(
-            int alignment, 
-            int cx, 
-            int cy, 
-            int id, 
-            boolean locked, 
-            boolean muted, 
-            String name,
-            boolean render,
-            int source_cx,
-            int source_cy,
-            String type,
-            int volume,
-            int x,
-            int y) {
-        this.alignment=alignment;
-        this.cx=cx;
-        this.cy=cy;
-        this.id=id;
-        this.locked=locked;
-        this.muted=muted;
-        this.name=name;
-        this.render=render;
-        this.source_cx=source_cx;
-        this.source_cy=source_cy;
-        this.type=type;
-        this.volume=volume;
-        this.x=x;
-        this.y=y;
+            String inputKind,
+            boolean isGroup,
+            String sceneItemBlendMode,
+            boolean sceneItemEnabled,
+            int sceneItemId,
+            boolean sceneItemLocked,
+            String sourceName,
+            String sourceType) {
+        this.inputKind=inputKind;
+        this.isGroup=isGroup;
+        this.sceneItemBlendMode=sceneItemBlendMode;
+        this.sceneItemEnabled=sceneItemEnabled;
+        this.sceneItemId=sceneItemId;
+        this.sceneItemLocked=sceneItemLocked;
+        this.sourceName=sourceName;
+        this.sourceType=sourceType;
     }
 
     public ObsSceneItem(JSONObject jsonObject) {
         try {
-            this.alignment=jsonObject.getInt("alignment");
-            this.cx=jsonObject.getInt("cx");
-            this.cy=jsonObject.getInt("cy");
-            this.id=jsonObject.getInt("id");
-            this.locked=jsonObject.getBoolean("locked");
-            this.muted=jsonObject.getBoolean("muted");
-            this.name=jsonObject.getString("name");
-            this.render=jsonObject.getBoolean("render");
-            this.source_cx=jsonObject.getInt("source_cx");
-            this.source_cy=jsonObject.getInt("source_cy");
-            this.type=jsonObject.getString("type");
-            this.volume=jsonObject.getInt("volume");
-            this.x=jsonObject.getInt("x");
-            this.y=jsonObject.getInt("y");
+            this.inputKind=jsonObject.getString("inputKind");
+            //this.isGroup=jsonObject.getBoolean("isGroup");
+
+            this.sceneItemBlendMode=jsonObject.getString("sceneItemBlendMode");
+            this.sceneItemEnabled=jsonObject.getBoolean("sceneItemEnabled");
+            this.sceneItemId=jsonObject.getInt("sceneItemId");
+            this.sceneItemIndex=jsonObject.getInt("sceneItemIndex");
+            this.sceneItemLocked=jsonObject.getBoolean("sceneItemLocked");
+            this.sourceType=jsonObject.getString("sourceType");
+            this.sourceName=jsonObject.getString("sourceName");
         } catch (JSONException e) {
             e.printStackTrace();
         }
 
     }
-    
-    int alignment;
-    int cx;
-    int cy;
-    int id;
-    boolean locked;
-    public boolean muted;
-    public String name;
-    public boolean render;
-    int source_cx;
-    int source_cy;
-    public String type;
-    int volume;
-    int x;
-    int y;
+
+    String inputKind;
+    boolean isGroup;
+    String sceneItemBlendMode;
+    public boolean sceneItemEnabled;
+    public int sceneItemId;
+    int sceneItemIndex;
+    boolean sceneItemLocked;
+    public String sourceName;
+    String sourceType;
 }

@@ -26,4 +26,13 @@ public class ObsScenesList {
     public String getCurrentScene() {
         return currentScene;
     }
+
+    public int findSceneIdByName(String sceneName) {
+        for (int i = 0; i < scenes.size(); i++) {
+            if (scenes.get(i).name.equals(sceneName)) {
+                return i;
+            }
+        }
+        return -1;
+    }
 }

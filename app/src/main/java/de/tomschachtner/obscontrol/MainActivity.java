@@ -465,7 +465,7 @@ public class MainActivity
 
     void onConnectedToWebService() {
         //Toast.makeText(this, "Yeah!", Toast.LENGTH_SHORT).show();
-        mOBSWebSocketClient.checkAuthentication();
+        //mOBSWebSocketClient.checkAuthentication();
         invalidateOptionsMenu();
         scenesFragment.setConnectStatusIndicator(status.OPEN);
         //mOBSWebSocketClient.getScenesList();
