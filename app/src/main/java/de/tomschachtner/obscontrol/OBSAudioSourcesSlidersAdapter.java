@@ -25,7 +25,7 @@ public class OBSAudioSourcesSlidersAdapter
         implements OBSWebSocketClient.ObsAudioChangedListener {
 
     //TODO: Determine the structure of the audioSourcesList structure
-    private ArrayList<OBSAudioSource> mData;
+    public ArrayList<OBSAudioSource> mData;
     private LayoutInflater mInflater;
 
     //TODO: Change listeners to match the sliders' messages
@@ -127,7 +127,7 @@ public class OBSAudioSourcesSlidersAdapter
             @Override
             public void run() {
                 mData = audioSources;
-                notifyDataSetChanged();
+                //notifyDataSetChanged();
             }
         });
     }

@@ -2,7 +2,9 @@ package de.tomschachtner.obscontrol;
 
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.Image;
 import android.os.Handler;
 import android.util.Log;
 import android.widget.ImageView;
@@ -18,6 +20,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.ConnectException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -35,13 +40,13 @@ import de.tomschachtner.obscontrol.obsdata.OBSAudioSource;
 import de.tomschachtner.obscontrol.obsdata.ObsScene;
 import de.tomschachtner.obscontrol.obsdata.ObsSceneItem;
 import de.tomschachtner.obscontrol.obsdata.ObsScenesList;
-import de.tomschachtner.obscontrol.obsdata.ObsSourceType;
 import de.tomschachtner.obscontrol.obsdata.ObsSourceTypesList;
 import de.tomschachtner.obscontrol.obsdata.ObsTransitionsList;
 
 public class OBSWebSocketClient
         extends WebSocketClient {
 
+    //region Constants
     public final static int OBS_OP_HELLO = 0;
     public final static int OBS_OP_IDENTIFY = 1;
     public final static int OBS_OP_IDENTIFIED = 2;
@@ -73,9 +78,6 @@ public class OBSWebSocketClient
             OBS_EVENT_SUBSCR_MEDIAINPUTS |
             OBS_EVENT_SUBSCR_VENDORS |
             OBS_EVENT_SUBSCR_UI;
-
-
-
     public final static String OBS_REQ_GET_SCENE_LIST = "GetSceneList";
     public final static String OBS_REQ_GET_SCENE_ITEMS_LIST = "GetSceneItemList";
     public final static String OBS_REQ_SET_CURRENT_PREVIEW_SCENE = "SetCurrentPreviewScene";
@@ -84,38 +86,18 @@ public class OBSWebSocketClient
     public final static String OBS_REQ_TOGGLE_STREAM = "ToggleStream";
     public final static String OBS_REQ_TOGGLE_RECORDING = "ToggleRecord";
     public final static String OBS_REQ_TRIGGER_STUDIO_MODE_TRANSITION = "TriggerStudioModeTransition";
-
-    public static final String TAG = "ObsWebSocketClient_TS";
-    public MainActivity mainAct;
-    public MainActivity.status connStatus;
-
-    public ObsScenesList obsScenes;
-    public ObsScene currentPreviewScene;
-    public ObsTransitionsList transitionsList;
-
-    public ObsSourceTypesList obsSourceTypesList;
-    public ArrayList<OBSAudioSource> obsAudioSources;
-    private boolean userChangesVolume = false;
-
-    private Map<UUID, String> ScenesToItems;
-
-    Handler mainHandler;
-
-    /**
-     * This variable holds the listener that is informed about changes of the scenes list
-     */
-    ObsScenesChangedListener mObsScenesChangedListener;
-    /**
-     * This variable holds the listener that is informed about changes of the sources list
-     */
-    ObsSourcesChangedListener mObsSourcesChangedListener;
-    ObsTransitionsChangedListener mObsTransitionsChangedListener;
-    ObsAudioChangedListener mObsAudioChangedListener;
-
-    private boolean isStreaming = false;
-    private boolean isRecording = false;
-    private boolean bPendingTransition = false; // used to signal that a transition is currently going on
-    String pendingSourceActiveName;
+    public final static String OBS_REQ_GET_INPUT_LIST = "GetInputList";
+    public final static String OBS_REQ_GET_INPUT_SETTINGS = "GetInputSettings";
+    public final static String OBS_REQ_GET_INPUT_MUTE = "GetInputMute";
+    public final static String OBS_REQ_GET_INPUT_VOLUME = "GetInputVolume";
+    public final static String OBS_REQ_SET_INPUT_VOLUME = "SetInputVolume";
+    public final static String OBS_REQ_SET_INPUT_MUTE = "SetInputMute";
+    public final static String OBS_REQ_GET_VERSION = "GetVersion";
+    public final static String OBS_REQ_GET_SOURCE_SCREENSHOT = "GetSourceScreenshot";
+    public final static String OBS_EVT_INPUT_VOLUME_CHANGED = "InputVolumeChanged";
+    public final static String OBS_EVT_INPUT_MUTE_STATE_CHANGED = "InputMuteStateChanged";
+    public final static String OBS_EVT_CURRENT_PREVIEW_SCENE_CHANGED = "CurrentPreviewSceneChanged";
+    public final static String OBS_EVT_CURRENT_PROGRAM_SCENE_CHANGED = "CurrentProgramSceneChanged";
 
     private final int SCENES = 0b00000000001;
     private final int ACTIVE_SCENE = 0b00000000010;
@@ -129,6 +111,36 @@ public class OBSWebSocketClient
     private final int RECORDING = 0b01000000000;
     private final int AUDIO_VOLUMES = 0b10000000000;
 
+    // No audio support
+    private final String OBS_INPUT_MONITOR_CAPTURE = "monitor_capture";
+    private final String OBS_INPUT_IMAGE_SOURCE = "image_source";
+    private final String OBS_INPUT_SLIDESHOW = "slideshow";
+    private final String OBS_INPUT_TEXT_GDIPLUS_V2 = "text_gdiplus_v2";
+
+    // audio support
+    private final String OBS_INPUT_DSHOW_INPUT = "dshow_input";
+    private final String OBS_INPUT_WASAPI_INPUT_CAPTURE = "wasapi_input_capture";
+    private final String OBS_INPUT_WASAPI_OUTPUT_CAPTURE = "wasapi_output_capture";
+    private final String OBS_INPUT_BROWSER_SOURCE = "browser_source";
+
+    public static final String TAG = "ObsWebSocketClient_TS";
+
+    //endregion
+
+    // region Variables
+    public MainActivity mainAct;
+    public MainActivity.status connStatus;
+    public ObsScenesList obsScenes;
+    public ObsScene currentPreviewScene;
+    public ObsTransitionsList transitionsList;
+    public ObsSourceTypesList obsSourceTypesList;
+    public ArrayList<OBSAudioSource> obsAudioSources;
+    private boolean userChangesVolume = false;
+    private Map<UUID, String> ScenesToItems;
+    Handler mainHandler;
+    private boolean isStreaming = false;
+    private boolean isRecording = false;
+    private boolean bPendingTransition = false; // used to signal that a transition is currently going on
     int targetUpdateStatus = SCENES
             + SCENE_ITEMS
             + ACTIVE_SCENE
@@ -138,8 +150,26 @@ public class OBSWebSocketClient
             + STREAMING
             + RECORDING
             + TRANS_CHANGED;
-    private String currentRequestType;
-    private String currentRequestId;
+    /**
+     * This variable holds the listener that is informed about changes of the scenes list
+     */
+    ObsScenesChangedListener mObsScenesChangedListener;
+    /**
+     * This variable holds the listener that is informed about changes of the sources list
+     */
+    ObsSourcesChangedListener mObsSourcesChangedListener;
+    ObsTransitionsChangedListener mObsTransitionsChangedListener;
+    ObsAudioChangedListener mObsAudioChangedListener;
+    String pendingSourceActiveName;
+    int currentUpdateStatus = 0;
+    boolean fillFullStatus;
+    UUID getCurrentPreviewScreenReqUUID=null;
+    UUID triggerStudioModeTransitionUUID = null;
+    UUID setSceneItemRenderUUID = null;
+    UUID toggleStreamUUID=null;
+    UUID toggleRecordUUID=null;
+    UUID getInputListUUID=null;
+    // endregion
 
     //region Constructors
 
@@ -227,8 +257,8 @@ public class OBSWebSocketClient
     private JSONObject CreateBasicRequest(String reqType, String reqId, Object reqData) {
         JSONObject dataObject = new JSONObject();
         JSONObject request = new JSONObject();
-            currentRequestType = reqType;
-            currentRequestId = reqId;
+            //currentRequestType = reqType;
+            //currentRequestId = reqId;
             try {
                 dataObject.put("requestType", reqType);
                 dataObject.put("requestId", reqId);
@@ -387,14 +417,13 @@ public class OBSWebSocketClient
     }
     //endregion
 
-    int currentUpdateStatus = 0;
-    boolean fillFullStatus;
 
     public void updateScenes() {
         fillFullStatus = true; // Hole alle Szenen
         getScenesList_req();
         //getSceneItemsList_req(UUID.randomUUID(), "Szene 2");
         getPreviewScene_req();
+        getInputList_req();
         //getAudioSourcesList_req();
         //getStreamingStatus_req();
         //getTransitionsList_req();
@@ -402,7 +431,7 @@ public class OBSWebSocketClient
 
     public void updateVolumes() {
         fillFullStatus = true;
-        getAudioSourcesList_req();
+        getInputList_req();
     }
 
     /**
@@ -466,36 +495,36 @@ public class OBSWebSocketClient
      *
      * @param jso Struktur, die alle OBS-Szenen enthält
      */
-    private void getScenesList_resp(JSONObject jso) {
-        try {
-            obsScenes = new ObsScenesList();
-            obsScenes.setCurrentScene(jso.getString("currentProgramSceneName"));
-            JSONArray scenes = jso.getJSONArray("scenes");
-            for (int i = 0; i < scenes.length(); i++) {
-                JSONObject scene = scenes.getJSONObject(i);
-                Log.d("TEST", "Szene: " + scene.getString("sceneName"));
-                ObsScene obsScene = new ObsScene();
-                obsScene.name = scene.getString("sceneName");
-                // Get SceneItemList
-                UUID thisGUID = java.util.UUID.randomUUID();
-
-                JSONArray sceneItems = scene.getJSONArray("sources");
-                for (int j = 0; j < sceneItems.length(); j++) {
-                    JSONObject sceneItem = sceneItems.getJSONObject(j);
-                    Log.d("TEST", "-- Source: " + sceneItem.getString("name"));
-                    ObsSceneItem obsSceneItem = new ObsSceneItem(sceneItem);
-                    obsScene.sceneItems.add(obsSceneItem);
-                }
-                obsScenes.scenes.add(obsScene);
-            }
-            if (fillFullStatus) {
-                currentUpdateStatus |= SCENES | SCENE_ITEMS | ACTIVE_SCENE | ITEMS_ACTIVE;
-                checkInvalidate();
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-    }
+//    private void getScenesList_resp(JSONObject jso) {
+//        try {
+//            obsScenes = new ObsScenesList();
+//            obsScenes.setCurrentScene(jso.getString("currentProgramSceneName"));
+//            JSONArray scenes = jso.getJSONArray("scenes");
+//            for (int i = 0; i < scenes.length(); i++) {
+//                JSONObject scene = scenes.getJSONObject(i);
+//                Log.d("TEST", "Szene: " + scene.getString("sceneName"));
+//                ObsScene obsScene = new ObsScene();
+//                obsScene.name = scene.getString("sceneName");
+//                // Get SceneItemList
+//                UUID thisGUID = java.util.UUID.randomUUID();
+//
+//                JSONArray sceneItems = scene.getJSONArray("sources");
+//                for (int j = 0; j < sceneItems.length(); j++) {
+//                    JSONObject sceneItem = sceneItems.getJSONObject(j);
+//                    Log.d("TEST", "-- Source: " + sceneItem.getString("name"));
+//                    ObsSceneItem obsSceneItem = new ObsSceneItem(sceneItem);
+//                    obsScene.sceneItems.add(obsSceneItem);
+//                }
+//                obsScenes.scenes.add(obsScene);
+//            }
+//            if (fillFullStatus) {
+//                currentUpdateStatus |= SCENES | SCENE_ITEMS | ACTIVE_SCENE | ITEMS_ACTIVE;
+//                checkInvalidate();
+//            }
+//        } catch (JSONException e) {
+//            e.printStackTrace();
+//        }
+//    }
 
     /**
      * Eine Struktur mit allen im ausgewählten OBS-Profil verfügbaren Szenen wird angelegt
@@ -586,7 +615,6 @@ public class OBSWebSocketClient
         }
     }
 
-    UUID getCurrentPreviewScreenReqUUID=null;
 
     /**
      * Ein Request wird on OBS geschickt, dass die aktuell Preview-Szene übermittelt werden soll
@@ -644,7 +672,6 @@ public class OBSWebSocketClient
         send(jso.toString());
     }
 
-    UUID triggerStudioModeTransitionUUID = null;
 
     /**
      * Ein Request wird an OBS geschickt, dass die aktuelle Preview-Szene mit dem aktuellen Übergang
@@ -676,7 +703,6 @@ public class OBSWebSocketClient
         setSceneItemVisible_req(currentPreviewScene.name, sceneItemId, !isVisible);
     }
 
-    UUID setSceneItemRenderUUID = null;
 
     /**
      * Ein Request wird an OBS geschickt, um ein Scene Item ab- oder anzuschalten
@@ -714,7 +740,6 @@ public class OBSWebSocketClient
         }
     }
 
-    UUID toggleStreamUUID=null;
 
     /**
      * Ein Request wird an OBS geschickt, um das Streamen ein- oder auszuschalten
@@ -728,7 +753,7 @@ public class OBSWebSocketClient
         send(jso.toString());
     }
 
-    UUID toggleRecordUUID=null;
+
 
     /**
      * Ein Request wird an OBS geschickt, um die Aufnahme ein- oder auszuschalten
@@ -843,141 +868,151 @@ public class OBSWebSocketClient
      * ob die Quelle auch eine Audioquelle ist. In einem dritten Schritt wird geprüft, ob die Audio-
      * quelle auch gerade aktiv ist.
      */
-    public void getAudioSourcesList_req() {
-        JSONObject jso;
-        try {
-            jso = new JSONObject();
-            jso.put("request-type", "GetSourcesList");
-            jso.put("message-id", "GetSourcesList_SCT");
-            send(jso.toString());
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-    }
+//    public void getAudioSourcesList_req() {
+//        JSONObject jso;
+//        try {
+//            jso = new JSONObject();
+//            jso.put("request-type", "GetSourcesList");
+//            jso.put("message-id", "GetSourcesList_SCT");
+//            send(jso.toString());
+//        } catch (JSONException e) {
+//            e.printStackTrace();
+//        }
+//    }
 
     int numberOfAudioSources;
     boolean numberOfAudioSourcesValid = false;
     int audioSourcesDone;
 
-    private void getAudioSourcesList_resp(JSONObject jso, int stage) {
-        mainAct.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                switch (stage) {
-                    case 1:
-                        if (targetUpdateStatus == AUDIO_VOLUMES) { // if user changes volume, not all audio sources have to be reread...
-                            for (OBSAudioSource source :
-                                    obsAudioSources) {
-                                JSONObject jso2 = new JSONObject();
-                                try {
-                                    jso2.put("request-type", "GetVolume");
-                                    jso2.put("source", source.name);
-                                    jso2.put("useDecibel", "true");
-                                    jso2.put("message-id", "GetVolume_SCT");
-                                    send(jso2.toString());
-                                } catch (JSONException jsonException) {
-                                    jsonException.printStackTrace();
-                                }
-                            }
-                        } else {
-                            numberOfAudioSources = 0; // clear the number of audio sources
-                            numberOfAudioSourcesValid = false;
-                            audioSourcesDone = 0;
-                            JSONArray jsonArray;
-                            try {
-                                jsonArray = jso.getJSONArray("sources");
-                                obsAudioSources.clear();
-                                for (int i = 0; i < jsonArray.length(); i++) {
-                                    JSONObject source = jsonArray.getJSONObject(i);
-                                    String typeId = source.getString("typeId");
-                                    for (ObsSourceType obsSourceType : obsSourceTypesList.obsSources) {
-                                        if (obsSourceType.typeId.equals(typeId) && obsSourceType.caps.hasAudio) {
-                                            OBSAudioSource obsAudioSource = new OBSAudioSource();
-                                            obsAudioSource.name = source.getString("name");
-                                            obsAudioSource.typeId = typeId;
-                                            obsAudioSource.type = source.getString("type");
-                                            obsAudioSources.add(obsAudioSource);
-                                            JSONObject jso2 = new JSONObject();
-                                            numberOfAudioSources++;
-                                            jso2.put("request-type", "GetVolume");
-                                            jso2.put("source", obsAudioSource.name);
-                                            jso2.put("useDecibel", "true");
-                                            jso2.put("message-id", "GetVolume_SCT");
-                                            send(jso2.toString());
-                                        }
-                                    }
-                                }
-                                numberOfAudioSourcesValid = true;
-
-                            } catch (JSONException jsonException) {
-                                jsonException.printStackTrace();
-                            }
-                        }
-                        break;
-                    case 2:
-                        for (OBSAudioSource obsAudioSource :
-                                obsAudioSources) {
-                            try {
-                                if (obsAudioSource.name.equals(jso.getString("name"))) {
-                                    mainAct.runOnUiThread(new Runnable() {
-                                        @Override
-                                        public void run() {
-
-                                            try {
-                                                obsAudioSource.volume = (int) (jso.getDouble("volume") * 1000);
-                                                obsAudioSource.isMuted = jso.getBoolean("muted");
-                                                //invalidateAdapters();
-                                                audioSourcesDone++;
-                                                if (numberOfAudioSourcesValid && (audioSourcesDone >= numberOfAudioSources) && fillFullStatus) {
-                                                    if ((targetUpdateStatus & AUDIO_SOURCES) > 0) {
-                                                        currentUpdateStatus |= AUDIO_SOURCES;
-                                                    }
-                                                    if ((targetUpdateStatus & AUDIO_VOLUMES) > 0) {
-                                                        currentUpdateStatus |= AUDIO_VOLUMES;
-                                                    }
-                                                    audioSourcesDone = 0;
-                                                    checkInvalidate();
-                                                }
-
-
-                                                // check if audio source is available in currently active scene
-//                                                boolean found = false;
-//                                                for (ObsScene scene :
-//                                                        obsScenes.scenes) {
-//                                                    if (scene.name.equals(obsScenes.getCurrentScene())) {
-//                                                        for (ObsSceneItem item :
-//                                                                scene.sceneItems) {
-//                                                            if (item.name.equals(obsAudioSource.name)) {
-//                                                                found = true;
-//                                                            }
-//                                                        }
-//                                                    }
-//                                                }
-
-//                                                if (!found) {
-//                                                    for (int i = 0; i < obsAudioSources.size(); i++) {
-//                                                        if (obsAudioSources.get(i).name.equals(obsAudioSource.name)) {
-//                                                            obsAudioSources.remove(i);
-//                                                        }
-//                                                    }
-//                                                }
-
-                                            } catch (JSONException jsonException) {
-                                                jsonException.printStackTrace();
-                                            }
-                                        }
-                                    });
-                                }
-                            } catch (JSONException jsonException) {
-                                jsonException.printStackTrace();
-                            }
-                        }
-                        break;
-                    // TODO enhance Audio structure to contain information about mute status and volume level
-                }
-            }
-        });
+    public void getInputList_req() {
+        getInputListUUID = UUID.randomUUID();
+        JSONObject jso = new JSONObject();
+        jso = CreateBasicRequest(
+                OBS_REQ_GET_INPUT_LIST,
+                getInputListUUID.toString()
+        );
+        send(jso.toString());
     }
+
+//    private void getAudioSourcesList_resp(JSONObject jso, int stage) {
+//        mainAct.runOnUiThread(new Runnable() {
+//            @Override
+//            public void run() {
+//                switch (stage) {
+//                    case 1:
+//                        if (targetUpdateStatus == AUDIO_VOLUMES) { // if user changes volume, not all audio sources have to be reread...
+//                            for (OBSAudioSource source :
+//                                    obsAudioSources) {
+//                                JSONObject jso2 = new JSONObject();
+//                                try {
+//                                    jso2.put("request-type", "GetVolume");
+//                                    jso2.put("source", source.name);
+//                                    jso2.put("useDecibel", "true");
+//                                    jso2.put("message-id", "GetVolume_SCT");
+//                                    send(jso2.toString());
+//                                } catch (JSONException jsonException) {
+//                                    jsonException.printStackTrace();
+//                                }
+//                            }
+//                        } else {
+//                            numberOfAudioSources = 0; // clear the number of audio sources
+//                            numberOfAudioSourcesValid = false;
+//                            audioSourcesDone = 0;
+//                            JSONArray jsonArray;
+//                            try {
+//                                jsonArray = jso.getJSONArray("sources");
+//                                obsAudioSources.clear();
+//                                for (int i = 0; i < jsonArray.length(); i++) {
+//                                    JSONObject source = jsonArray.getJSONObject(i);
+//                                    String typeId = source.getString("typeId");
+//                                    for (ObsSourceType obsSourceType : obsSourceTypesList.obsSources) {
+//                                        if (obsSourceType.typeId.equals(typeId) && obsSourceType.caps.hasAudio) {
+//                                            OBSAudioSource obsAudioSource = new OBSAudioSource();
+//                                            obsAudioSource.name = source.getString("name");
+//                                            obsAudioSource.typeId = typeId;
+//                                            obsAudioSource.type = source.getString("type");
+//                                            obsAudioSources.add(obsAudioSource);
+//                                            JSONObject jso2 = new JSONObject();
+//                                            numberOfAudioSources++;
+//                                            jso2.put("request-type", "GetVolume");
+//                                            jso2.put("source", obsAudioSource.name);
+//                                            jso2.put("useDecibel", "true");
+//                                            jso2.put("message-id", "GetVolume_SCT");
+//                                            send(jso2.toString());
+//                                        }
+//                                    }
+//                                }
+//                                numberOfAudioSourcesValid = true;
+//
+//                            } catch (JSONException jsonException) {
+//                                jsonException.printStackTrace();
+//                            }
+//                        }
+//                        break;
+//                    case 2:
+//                        for (OBSAudioSource obsAudioSource :
+//                                obsAudioSources) {
+//                            try {
+//                                if (obsAudioSource.name.equals(jso.getString("name"))) {
+//                                    mainAct.runOnUiThread(new Runnable() {
+//                                        @Override
+//                                        public void run() {
+//
+//                                            try {
+//                                                obsAudioSource.volume = (int) (jso.getDouble("volume") * 1000);
+//                                                obsAudioSource.isMuted = jso.getBoolean("muted");
+//                                                //invalidateAdapters();
+//                                                audioSourcesDone++;
+//                                                if (numberOfAudioSourcesValid && (audioSourcesDone >= numberOfAudioSources) && fillFullStatus) {
+//                                                    if ((targetUpdateStatus & AUDIO_SOURCES) > 0) {
+//                                                        currentUpdateStatus |= AUDIO_SOURCES;
+//                                                    }
+//                                                    if ((targetUpdateStatus & AUDIO_VOLUMES) > 0) {
+//                                                        currentUpdateStatus |= AUDIO_VOLUMES;
+//                                                    }
+//                                                    audioSourcesDone = 0;
+//                                                    checkInvalidate();
+//                                                }
+//
+//
+//                                                // check if audio source is available in currently active scene
+////                                                boolean found = false;
+////                                                for (ObsScene scene :
+////                                                        obsScenes.scenes) {
+////                                                    if (scene.name.equals(obsScenes.getCurrentScene())) {
+////                                                        for (ObsSceneItem item :
+////                                                                scene.sceneItems) {
+////                                                            if (item.name.equals(obsAudioSource.name)) {
+////                                                                found = true;
+////                                                            }
+////                                                        }
+////                                                    }
+////                                                }
+//
+////                                                if (!found) {
+////                                                    for (int i = 0; i < obsAudioSources.size(); i++) {
+////                                                        if (obsAudioSources.get(i).name.equals(obsAudioSource.name)) {
+////                                                            obsAudioSources.remove(i);
+////                                                        }
+////                                                    }
+////                                                }
+//
+//                                            } catch (JSONException jsonException) {
+//                                                jsonException.printStackTrace();
+//                                            }
+//                                        }
+//                                    });
+//                                }
+//                            } catch (JSONException jsonException) {
+//                                jsonException.printStackTrace();
+//                            }
+//                        }
+//                        break;
+//                    // TODO enhance Audio structure to contain information about mute status and volume level
+//                }
+//            }
+//        });
+//    }
 
     /**
      * Die Audioquelle an Position @param position wird stummgeschaltet oder die Stummschaltung
@@ -988,16 +1023,19 @@ public class OBSWebSocketClient
      */
     public void setMute(int position, boolean checked) {
         JSONObject jso;
+        JSONObject payload = new JSONObject();
         try {
-            jso = new JSONObject();
-            jso.put("request-type", "SetMute");
-            jso.put("source", obsAudioSources.get(position).name);
-            jso.put("mute", checked ? true : false);
-            jso.put("message-id", "SetMute_SCT");
-            send(jso.toString());
+            payload.put("inputName", obsAudioSources.get(position).name);
+            payload.put("inputMuted", checked);
         } catch (JSONException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
+
+        jso = CreateBasicRequest(
+                OBS_REQ_SET_INPUT_MUTE,
+                UUID.randomUUID().toString(),
+                payload);
+        send(jso.toString());
     }
 
     /**
@@ -1101,170 +1139,221 @@ public class OBSWebSocketClient
                     ProcessResponse(dataObj);
                     break;
                 case OBS_OP_EVENT:
-                    Log.i(TAG, "Event catched. Probably need to handle... (Detail: " + jso.toString() + ")");
-                    // TODO: Take care of events
+                    ProcessEvent(dataObj);
                     break;
                 default:
                     throw new IllegalStateException("Unexpected value: " + jso.getInt("op"));
             }
 
-            final int targetFullUpdateStatus = SCENES
-                    + SCENE_ITEMS
-                    + ACTIVE_SCENE
-                    + PREVIEW_SCENE
-                    + ITEMS_ACTIVE
-                    + AUDIO_SOURCES
-                    + STREAMING
-                    + RECORDING
-                    + TRANS_CHANGED;
-            if (jso.has("message-id")) {
-                String msgId = jso.getString("message-id");
-                switch (msgId) {
-                    case "isAuthRequired_SCT":
-                        // Benutzer muss sich authentisieren
-                        // ToastInMainAct("Benutzer muss sich authentisieren!");
-                        checkAndDoAuth(jso);
-                        break;
-                    case "Authenticate_SCT":
-                        ToastInMainAct(jso.toString());
-                        Log.d("TEST", jso.toString());
-                        processAuthResult(jso);
-                        this.targetUpdateStatus = targetFullUpdateStatus;
-                        updateScenes();
-                        break;
-                    case "SceneList_SCT":
-                        Log.d("TEST", jso.toString());
-                        getScenesList_resp(jso);
-                        getPreviewScene_req();
-                        break;
-                    case "SetScene_SCT":
-                    case "transProgram_SCT":
-                        Log.d("TEST", jso.toString());
-                        TimeUnit.MILLISECONDS.sleep(200);
-                        //updateScenes();
-                        break;
-                    //case "GetPreviewScene_SCT":
-                    //    Log.d("TEST", jso.toString());
-                    //    getPreviewScene_resp(jso, lastCall);
-                    //    // getStreamingStatus_req();
-                    //    // invalidateAdapters();
-                    //    break;
-                    case "changeScreenItemRender_SCT":
-                    case "SetMute_SCT":
-                        Log.d("TEST", jso.toString());
-                        //updateScenes();
-                        break;
-                    case "getStreamingStatus_SCT":
-                        Log.d("TEST", jso.toString());
-                        getStreamingStatus_resp(jso);
-                        // invalidateAdapters();
-                        break;
-                    case "toggleStreaming_SCT":
-                    case "toggleRecording_SCT":
-                        Log.d("TEST", jso.toString());
-                        this.targetUpdateStatus = RECORDING + STREAMING;
-                        updateScenes();
-                        break;
-                    case "translitionsList_SCT":
-                        Log.d("TEST", jso.toString());
-                        getTransitionsList_resp(jso);
-                        // invalidateAdapters();
-                        break;
-                    case "transProgramCustom_SCT":
-                        Log.d("TEST", jso.toString());
-                        // Während des Übergangs sollen keine weiteren Updates am UI gemacht werden
-                        // Die Semaphore bPendingTransition sorgt dafür.
-                        // Außerdem wird damit erkannt, dass der angeforderte Übergang abgeschlossen
-                        // ist, wenn eine entsprechende Statusmeldung von OBS verschickt wird
-                        bPendingTransition = true;
-                        // Is not thread-safe: There could be another transaction kicking in while this transaction is still running...
-                        TimeUnit.MILLISECONDS.sleep(200);
-                        break;
-                    case "NewCurrentTransition_SCT":
-                        Log.d("TEST", jso.toString());
-                        getTransitionsList_req();
-                        break;
-                    case "GetSourcesList_SCT":
-                        Log.d("TEST", jso.toString());
-                        getAudioSourcesList_resp(jso, 1);
-                        break;
-                    case "GetVolume_SCT":
-                        Log.d("TEST", jso.toString());
-                        getAudioSourcesList_resp(jso, 2);
-                        break;
-                    case "GetSourceTypesList_SCT":
-                        Log.d("TEST", jso.toString());
-                        obsSourceTypesList = new ObsSourceTypesList(jso);
-//                        getAudioSourcesList();
-                        break;
-                    case "GetSourceActive_SCT":
-                        Log.d("TEST", jso.toString());
-                        getAudioSourcesList_resp(jso, 3);
-                        break;
-                    case "SetVolume_SCT":
-                        Log.d("TEST", jso.toString());
-                        break;
-                    case "hotkey_by_sequence_SCT":
-                        Log.d("TEST", jso.toString());
-                        Log.d("TEST", "Hotkey sent!");
-                        break;
-                    case "TakeSourceScreenshot_SCT":
-                        Log.d("TEST", jso.toString());
-                        updatePreview_resp(jso);
-                        break;
+//            final int targetFullUpdateStatus = SCENES
+//                    + SCENE_ITEMS
+//                    + ACTIVE_SCENE
+//                    + PREVIEW_SCENE
+//                    + ITEMS_ACTIVE
+//                    + AUDIO_SOURCES
+//                    + STREAMING
+//                    + RECORDING
+//                    + TRANS_CHANGED;
 
-                    default:
-                        ToastInMainAct("Unbekannte Antwort vom WebService!");
-                }
-            } else if (jso.has("update-type")) {
-                //ToastInMainAct("Update from OBS");
-                Log.e("TEST", jso.toString());
-                switch (jso.getString("update-type")) {
-                    case "TransitionEnd":
-                        if (bPendingTransition) {
-                            backToOriginalDefaultTransition();
-                            TimeUnit.MILLISECONDS.sleep(200);
-                            this.targetUpdateStatus = targetFullUpdateStatus;
-                            //updateScenes();
-                        }
-                        break;
-                    case "SwitchTransition":
-                        if (!bPendingTransition) {
-                            targetUpdateStatus = targetFullUpdateStatus;
-                            updateScenes(); // war vorher: getTransitionsList_req();
-                        }
-                        break;
-                    case "SourceVolumeChanged":
-                        if (!bPendingTransition && !userChangesVolume) {
-                            targetUpdateStatus = AUDIO_VOLUMES;
-                            updateVolumes();
-                        }
-                        break;
-                    default:
-                        if (!bPendingTransition) {
-                            if (userChangesVolume) {
-                                targetUpdateStatus = AUDIO_VOLUMES;
-                                updateVolumes();
-                            } else {
-                                targetUpdateStatus = targetFullUpdateStatus;
-                                updateScenes();
-                            }
+//            if (jso.has("message-id")) {
+//                String msgId = jso.getString("message-id");
+//                switch (msgId) {
+//                    case "SetScene_SCT":
+//                    case "transProgram_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        TimeUnit.MILLISECONDS.sleep(200);
+//                        //updateScenes();
+//                        break;
+//                    //case "GetPreviewScene_SCT":
+//                    //    Log.d("TEST", jso.toString());
+//                    //    getPreviewScene_resp(jso, lastCall);
+//                    //    // getStreamingStatus_req();
+//                    //    // invalidateAdapters();
+//                    //    break;
+//                    case "changeScreenItemRender_SCT":
+//                    case "SetMute_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        //updateScenes();
+//                        break;
+//                    case "getStreamingStatus_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        getStreamingStatus_resp(jso);
+//                        // invalidateAdapters();
+//                        break;
+//                    case "toggleStreaming_SCT":
+//                    case "toggleRecording_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        this.targetUpdateStatus = RECORDING + STREAMING;
+//                        updateScenes();
+//                        break;
+//                    case "translitionsList_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        //getTransitionsList_resp(jso);
+//                        // invalidateAdapters();
+//                        break;
+//                    case "transProgramCustom_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        // Während des Übergangs sollen keine weiteren Updates am UI gemacht werden
+//                        // Die Semaphore bPendingTransition sorgt dafür.
+//                        // Außerdem wird damit erkannt, dass der angeforderte Übergang abgeschlossen
+//                        // ist, wenn eine entsprechende Statusmeldung von OBS verschickt wird
+//                        bPendingTransition = true;
+//                        // Is not thread-safe: There could be another transaction kicking in while this transaction is still running...
+//                        TimeUnit.MILLISECONDS.sleep(200);
+//                        break;
+//                    case "NewCurrentTransition_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        //getTransitionsList_req();
+//                        break;
+//                    case "GetSourcesList_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        getAudioSourcesList_resp(jso, 1);
+//                        break;
+//                    case "GetVolume_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        getAudioSourcesList_resp(jso, 2);
+//                        break;
+//                    case "GetSourceTypesList_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        obsSourceTypesList = new ObsSourceTypesList(jso);
+////                        getAudioSourcesList();
+//                        break;
+//                    case "GetSourceActive_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        getAudioSourcesList_resp(jso, 3);
+//                        break;
+//                    case "SetVolume_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        break;
+//                    case "hotkey_by_sequence_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        Log.d("TEST", "Hotkey sent!");
+//                        break;
+//                    case "TakeSourceScreenshot_SCT":
+//                        Log.d("TEST", jso.toString());
+//                        updatePreview_resp(jso);
+//                        break;
+//
+//                    default:
+//                        ToastInMainAct("Unbekannte Antwort vom WebService!");
+//                }
+//            } else if (jso.has("update-type")) {
+//                //ToastInMainAct("Update from OBS");
+//                Log.e("TEST", jso.toString());
+//                switch (jso.getString("update-type")) {
+//                    case "TransitionEnd":
+//                        if (bPendingTransition) {
+//                            backToOriginalDefaultTransition();
+//                            TimeUnit.MILLISECONDS.sleep(200);
+//                            this.targetUpdateStatus = targetFullUpdateStatus;
+//                            //updateScenes();
+//                        }
+//                        break;
+//                    case "SwitchTransition":
+//                        if (!bPendingTransition) {
+//                            targetUpdateStatus = targetFullUpdateStatus;
+//                            updateScenes(); // war vorher: getTransitionsList_req();
+//                        }
+//                        break;
+//                    case "SourceVolumeChanged":
+//                        if (!bPendingTransition && !userChangesVolume) {
+//                            targetUpdateStatus = AUDIO_VOLUMES;
+//                            updateVolumes();
+//                        }
+//                        break;
+//                    default:
+//                        if (!bPendingTransition) {
+//                            if (userChangesVolume) {
+//                                targetUpdateStatus = AUDIO_VOLUMES;
+//                                updateVolumes();
+//                            } else {
+//                                targetUpdateStatus = targetFullUpdateStatus;
+//                                updateScenes();
+//                            }
+//
+//                        }
+//                        //getAudioSourcesList();
+//                        // TODO: GetSourceActive mit einbauen (Audioquelle darf nur angezeigt werden, wenn true
+//                }
+//            }
 
-                        }
-                        //getAudioSourcesList();
-                        // TODO: GetSourceActive mit einbauen (Audioquelle darf nur angezeigt werden, wenn true
-                }
-            }
-
-        } catch (JSONException | InterruptedException e) {
+        } catch (JSONException e) {
             //e.printStackTrace();
             if (jso != null) Log.e("TEST", jso.toString());
         }
 
     }
 
+    private void ProcessEvent(JSONObject dataObj) {
+        Log.i(TAG, "Event catched. Probably need to handle... (Detail: " + dataObj.toString() + ")");
+        JSONObject eventData = null;
+        try {
+            eventData = dataObj.getJSONObject("eventData");
+            int eventIntent = dataObj.getInt("eventIntent");
+            String eventType = dataObj.getString("eventType");
+            switch (eventType) {
+                case OBS_EVT_INPUT_VOLUME_CHANGED:
+                    handleInputVolumeChanged(eventData);
+                    break;
+                case OBS_EVT_INPUT_MUTE_STATE_CHANGED:
+                    handleMuteStateChanged(eventData);
+                    break;
+                case OBS_EVT_CURRENT_PREVIEW_SCENE_CHANGED:
+                case OBS_EVT_CURRENT_PROGRAM_SCENE_CHANGED:
+                    updateScenes();
+                    break;
+                default:
+                    Log.i(TAG, "Unhandled event: " + eventData.toString());
+            }
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+        
+
+        // TODO: Take care of events
+
+
+    }
+
+    private void handleMuteStateChanged(JSONObject eventData) {
+        String inputName = null;
+        boolean inputMuted = false;
+        try {
+            inputName = eventData.getString("inputName");
+            inputMuted = eventData.getBoolean("inputMuted");
+            for (OBSAudioSource src : obsAudioSources) {
+                if (src.name.equals(inputName)) {
+                    src.isMuted = inputMuted;
+                    invalidateControls();
+                }
+            }
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private void handleInputVolumeChanged(JSONObject eventData) {
+        String inputName;
+        double db;
+        try {
+            inputName = eventData.getString("inputName");
+            db = eventData.getDouble("inputVolumeDb");
+            for (OBSAudioSource src : obsAudioSources) {
+                if (src.name.equals(inputName)) {
+                    src.volume = (int)(Math.exp(db/20) * 1000);
+                    invalidateControls();
+                }
+            }
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+        // Log.e(TAG, "** AUDIO: " + db + ", " + Math.exp(db/20));
+    }
+
     private void ProcessResponse(JSONObject dataObj) {
             JSONObject responseData = null;
+        JSONObject requestStatus;
             try {
                 UUID lastcall;
                 switch (dataObj.getString("requestType")) {
@@ -1306,11 +1395,212 @@ public class OBSWebSocketClient
                         //invalidateAdapters();
                         //invalidateControls();
                         break;
+                    case OBS_REQ_GET_INPUT_LIST:
+                        lastcall = UUID.fromString(dataObj.getString("requestId"));
+                        responseData = dataObj.getJSONObject("responseData");
+                        getInputList_resp(responseData, lastcall);
+                        break;
+                    case OBS_REQ_GET_INPUT_MUTE:
+                        requestStatus = dataObj.getJSONObject("requestStatus");
+                        lastcall = UUID.fromString(dataObj.getString("requestId"));
+                        if (requestStatus.getInt("code") == 604)
+                        {
+                            Log.i(TAG, dataObj.toString());
+                            Log.i(TAG, "The source does not support Audio");
+                            removeInputNoAudio(lastcall);
+                        } else {
+
+                            responseData = dataObj.getJSONObject("responseData");
+                            getInputMute_resp(responseData, lastcall);
+                        }
+                        break;
+                    case OBS_REQ_GET_INPUT_VOLUME:
+                        requestStatus = dataObj.getJSONObject("requestStatus");
+                        lastcall = UUID.fromString(dataObj.getString("requestId"));
+                        if (requestStatus.getInt("code") == 604)
+                        {
+                            Log.i(TAG, dataObj.toString());
+                            Log.i(TAG, "The source does not support Audio");
+                            removeInputNoAudio(lastcall);
+                        } else {
+
+                            responseData = dataObj.getJSONObject("responseData");
+                            getInputVolume_resp(responseData, lastcall);
+                        }
+                        break;
+                    case OBS_REQ_SET_INPUT_VOLUME:
+                        // already handled by event
+                        break;
+                    case OBS_REQ_GET_VERSION:
+                        responseData = dataObj.getJSONObject("responseData");
+                        lastcall = UUID.fromString(dataObj.getString("requestId"));
+                        updatePreview_resp(responseData, lastcall);
+                        break;
+                    case OBS_REQ_GET_SOURCE_SCREENSHOT:
+                        responseData = dataObj.getJSONObject("responseData");
+                        lastcall = UUID.fromString(dataObj.getString("requestId"));
+                        updatePreview_resp2(responseData, lastcall);
+                        break;
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
 
+    }
+
+    private void updatePreview_resp2(JSONObject responseData, UUID lastcall) {
+        //previewImage
+        //Log.d(TAG,responseData.toString());
+        String base64Img = null;
+        try {
+            base64Img = responseData.getString("imageData");
+            String base64ImgRaw = base64Img.substring(base64Img.indexOf(","));
+            byte[] decodedString = android.util.Base64.decode(base64ImgRaw, android.util.Base64.DEFAULT);
+            final Bitmap newImage = BitmapFactory.decodeByteArray(decodedString,0, decodedString.length);
+            mainAct.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    previewImage.setImageBitmap(newImage);
+                }
+            });
+
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+
+    private void updatePreview_resp(JSONObject responseData, UUID lastcall) {
+        if (lastcall.equals(GetVersionForScreenShotUUID)) {
+            GetVersionForScreenShotUUID = null;
+            // preview Screen mode
+            try {
+                JSONArray imageFormats = responseData.getJSONArray("supportedImageFormats");
+                boolean jpegFound=false;
+                for (int i = 0; i < imageFormats.length(); i++) {
+                    if (imageFormats.getString(i).equals("jpeg")) {
+                        jpegFound = true;
+                        break;
+                    }
+                }
+                String IMG_FMT_JPEG = "jpeg";
+                if (jpegFound) {
+                    JSONObject jso = new JSONObject();
+                    JSONObject payload = new JSONObject();
+                    payload.put("sourceName", obsScenes.getCurrentScene());
+                    payload.put("imageFormat", IMG_FMT_JPEG);
+                    jso = CreateBasicRequest(
+                            OBS_REQ_GET_SOURCE_SCREENSHOT,
+                            UUID.randomUUID().toString(),
+                            payload);
+                    send(jso.toString());
+                }
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+            Log.d(TAG, responseData.toString());
+        }
+    }
+
+    private void removeInputNoAudio(UUID lastcall) {
+        String inputSource = ScenesToItems.get(lastcall);
+        if (inputSource != null) {
+            ScenesToItems.remove(lastcall);
+            int position = -1;
+            for (int i = 0; i < obsAudioSources.size(); i++) {
+                if (obsAudioSources.get(i).name.equals(inputSource)) {
+                    position = i;
+                }
+            }
+            if (position != -1) {
+                obsAudioSources.remove(position);
+                //invalidateControls();
+            }
+        }
+    }
+
+    private void getInputVolume_resp(JSONObject responseData, UUID lastcall) {
+        String audioSourceName = ScenesToItems.get(lastcall);
+        for (OBSAudioSource src : obsAudioSources) {
+            if (src.name.equals(audioSourceName)) {
+                ScenesToItems.remove(lastcall);
+                Log.d(TAG, responseData.toString());
+                try {
+                    double inputVolumeDb = responseData.getDouble("inputVolumeDb");
+                    src.volume = (int) (Math.exp(inputVolumeDb / 20) * 1000.0);
+                    src.volumeDb = inputVolumeDb;
+                    //invalidateControls();
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    private void getInputMute_resp(JSONObject responseData, UUID lastcall) {
+        String audioSourceName = ScenesToItems.get(lastcall);
+        for (OBSAudioSource src : obsAudioSources) {
+            if (src.name.equals(audioSourceName)) {
+                ScenesToItems.remove(lastcall);
+                Log.d(TAG, responseData.toString());
+                try {
+                    src.isMuted = responseData.getBoolean("inputMuted");
+                    //invalidateControls();
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+ArrayList<OBSAudioSource> tempObsAudioSources;
+    public boolean fillingAudio = false;
+    private void getInputList_resp(JSONObject responseData, UUID lastcall) {
+        if (lastcall.equals(getInputListUUID)) {
+            Log.d(TAG, responseData.toString());
+                    obsAudioSources.clear();
+            try {
+                JSONArray obsInputs = responseData.getJSONArray("inputs");
+                for (int i = 0; i < obsInputs.length(); i++) {
+                    OBSAudioSource audioSource = new OBSAudioSource();
+                    JSONObject jso = obsInputs.getJSONObject(i);
+                    audioSource.name = jso.getString("inputName");
+                    audioSource.type = jso.getString("inputKind");
+                    if (audioSource.type.equals(OBS_INPUT_DSHOW_INPUT) ||
+                            audioSource.type.equals(OBS_INPUT_WASAPI_INPUT_CAPTURE) ||
+                            audioSource.type.equals(OBS_INPUT_WASAPI_OUTPUT_CAPTURE) ||
+                            audioSource.type.equals(OBS_INPUT_BROWSER_SOURCE)) {
+                        obsAudioSources.add(audioSource);
+                        UUID audioUUID = UUID.randomUUID();
+                        //audioSource.requestId = audioUUID;
+                        ScenesToItems.put(audioUUID, audioSource.name);
+                        JSONObject payload = new JSONObject();
+                        payload.put("inputName", audioSource.name);
+                        JSONObject listRequest = new JSONObject();
+                        listRequest = CreateBasicRequest(
+                                OBS_REQ_GET_INPUT_MUTE,
+                                audioUUID.toString(),
+                                payload
+                        );
+                        send(listRequest.toString());
+                        audioUUID = UUID.randomUUID();
+                        ScenesToItems.put(audioUUID, audioSource.name);
+                        //reuse old payload from above
+                        listRequest = CreateBasicRequest(
+                                OBS_REQ_GET_INPUT_VOLUME,
+                                audioUUID.toString(),
+                                payload
+                        );
+                        send(listRequest.toString());
+                    }
+                }
+                    // check inputKind and do not add if no audio support // TODO
+                //mainAct.transitionsVolumesFragment.obsAudioSourcesSlidersAdapter.notifyDataSetChanged();
+
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     private void doTransitionToProgram_resp(JSONObject responseData, UUID lastcall) {
@@ -1380,19 +1670,31 @@ public class OBSWebSocketClient
         userChangesVolume = false;
     }
 
+    UUID setInputVolumeUUID=null;
+
     public void setVolume(int adapterPosition, int volume) {
         JSONObject jso = new JSONObject();
-        try {
-            Log.e("TEST", String.valueOf(adapterPosition));
-            jso.put("request-type", "SetVolume");
-            jso.put("source", obsAudioSources.get(adapterPosition).name);
-            jso.put("volume", volume / 1000.0);
-            jso.put("useDecibel", "true");
-            jso.put("message-id", "SetVolume_SCT");
-            send(jso.toString());
-        } catch (JSONException jsonException) {
-            jsonException.printStackTrace();
+        setInputVolumeUUID = UUID.randomUUID();
+        double inputVolumeDb;
+        if (volume == 0) {
+            inputVolumeDb = -100;
+        } else {
+            inputVolumeDb = 20 * Math.log(volume / 1000.0);
         }
+
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("inputName", obsAudioSources.get(adapterPosition).name);
+            payload.put("inputVolumeDb", inputVolumeDb);
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+        jso = CreateBasicRequest(
+                OBS_REQ_SET_INPUT_VOLUME,
+                setInputVolumeUUID.toString(),
+                payload
+        );
+        send(jso.toString());
     }
 
     //region alert and Toast mechanisms
@@ -1426,21 +1728,30 @@ public class OBSWebSocketClient
 
     ImageView previewImage;
 
+    UUID GetVersionForScreenShotUUID=null;
     public void updatePreview(ImageView previewImage) {
         this.previewImage = previewImage;
         JSONObject jso = new JSONObject();
-        try {
-            Log.e("TEST", "Take Screenshot");
-            jso.put("request-type", "TakeSourceScreenshot");
-            jso.put("embedPictureFormat", "png");
-            jso.put("compressionQuality", "-1");
-            jso.put("message-id", "TakeSourceScreenshot_SCT");
-            send(jso.toString());
-        } catch (JSONException jsonException) {
-            jsonException.printStackTrace();
-        }
-
+        GetVersionForScreenShotUUID = UUID.randomUUID();
+        jso = CreateBasicRequest(OBS_REQ_GET_VERSION, GetVersionForScreenShotUUID.toString());
+        send(jso.toString());
     }
+//        String currentScene = obsScenes.getCurrentScene();
+//        JSONObject payload = new JSONObject();
+
+//        payload.put("sourceName", currentScene);
+//        try {
+//            Log.e("TEST", "Take Screenshot");
+//            jso.put("request-type", "TakeSourceScreenshot");
+//            jso.put("embedPictureFormat", "png");
+//            jso.put("compressionQuality", "-1");
+//            jso.put("message-id", "TakeSourceScreenshot_SCT");
+//            send(jso.toString());
+//        } catch (JSONException jsonException) {
+//            jsonException.printStackTrace();
+//        }
+
+//    }
 
     private void updatePreview_resp(JSONObject jso) {
         try {

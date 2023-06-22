@@ -58,8 +58,9 @@ public class TransitionsVolumesFragment
         obsTransitionsButtons = cl.findViewById(R.id.transitions_view);
         volumesSliderView = cl.findViewById(R.id.volumeSliderView);
 
-        client.getTransitionsList_req();
-        client.getAudioSourcesList_req();
+        // client.getTransitionsList_req(); TODO: Change to new websocket
+        client.getInputList_req();
+        //client.getAudioSourcesList_req();
 
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getContext());
         String strColumns = sp.getString("columns", "4");
